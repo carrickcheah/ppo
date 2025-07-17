@@ -1,0 +1,1051 @@
+{
+  "metadata": {
+    "extracted_at": "2025-07-16T12:07:23.246811",
+    "database": "nex_valiant",
+    "version": "1.0",
+    "machine_count": 152,
+    "machine_type_count": 40,
+    "routing_process_count": 0
+  },
+  "machines": [
+    {
+      "machine_id": 1,
+      "machine_name": "OV01",
+      "machine_type_id": 1,
+      "is_active": 1
+    },
+    {
+      "machine_id": 2,
+      "machine_name": "ALDG",
+      "machine_type_id": 24,
+      "is_active": 1
+    },
+    {
+      "machine_id": 3,
+      "machine_name": "BDS01",
+      "machine_type_id": 3,
+      "is_active": 1
+    },
+    {
+      "machine_id": 4,
+      "machine_name": "BL03",
+      "machine_type_id": 4,
+      "is_active": 1
+    },
+    {
+      "machine_id": 5,
+      "machine_name": "BL04",
+      "machine_type_id": 4,
+      "is_active": 1
+    },
+    {
+      "machine_id": 6,
+      "machine_name": "CM03",
+      "machine_type_id": 5,
+      "is_active": 1
+    },
+    {
+      "machine_id": 7,
+      "machine_name": "CM05",
+      "machine_type_id": 5,
+      "is_active": 1
+    },
+    {
+      "machine_id": 8,
+      "machine_name": "GD01",
+      "machine_type_id": 7,
+      "is_active": 1
+    },
+    {
+      "machine_id": 9,
+      "machine_name": "GD02",
+      "machine_type_id": 7,
+      "is_active": 1
+    },
+    {
+      "machine_id": 10,
+      "machine_name": "TP02",
+      "machine_type_id": 8,
+      "is_active": 1
+    },
+    {
+      "machine_id": 11,
+      "machine_name": "TP04",
+      "machine_type_id": 8,
+      "is_active": 1
+    },
+    {
+      "machine_id": 12,
+      "machine_name": "TP06",
+      "machine_type_id": 8,
+      "is_active": 1
+    },
+    {
+      "machine_id": 13,
+      "machine_name": "AC04-10HP",
+      "machine_type_id": 9,
+      "is_active": 1
+    },
+    {
+      "machine_id": 14,
+      "machine_name": "AD02-50HP",
+      "machine_type_id": 10,
+      "is_active": 1
+    },
+    {
+      "machine_id": 15,
+      "machine_name": "CL03",
+      "machine_type_id": 11,
+      "is_active": 1
+    },
+    {
+      "machine_id": 16,
+      "machine_name": "MG01",
+      "machine_type_id": 12,
+      "is_active": 1
+    },
+    {
+      "machine_id": 17,
+      "machine_name": "WORKSHOP ME",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 18,
+      "machine_name": "BS01",
+      "machine_type_id": 3,
+      "is_active": 1
+    },
+    {
+      "machine_id": 19,
+      "machine_name": "CT04",
+      "machine_type_id": 3,
+      "is_active": 1
+    },
+    {
+      "machine_id": 20,
+      "machine_name": "DR04",
+      "machine_type_id": 8,
+      "is_active": 1
+    },
+    {
+      "machine_id": 21,
+      "machine_name": "EDM01",
+      "machine_type_id": 14,
+      "is_active": 1
+    },
+    {
+      "machine_id": 22,
+      "machine_name": "GD03",
+      "machine_type_id": 7,
+      "is_active": 1
+    },
+    {
+      "machine_id": 23,
+      "machine_name": "GD04",
+      "machine_type_id": 15,
+      "is_active": 1
+    },
+    {
+      "machine_id": 24,
+      "machine_name": "LM02",
+      "machine_type_id": 16,
+      "is_active": 1
+    },
+    {
+      "machine_id": 25,
+      "machine_name": "LM03",
+      "machine_type_id": 16,
+      "is_active": 1
+    },
+    {
+      "machine_id": 26,
+      "machine_name": "ML01",
+      "machine_type_id": 17,
+      "is_active": 1
+    },
+    {
+      "machine_id": 27,
+      "machine_name": "ML02",
+      "machine_type_id": 17,
+      "is_active": 1
+    },
+    {
+      "machine_id": 28,
+      "machine_name": "ML03",
+      "machine_type_id": 17,
+      "is_active": 1
+    },
+    {
+      "machine_id": 29,
+      "machine_name": "ML04",
+      "machine_type_id": 17,
+      "is_active": 1
+    },
+    {
+      "machine_id": 30,
+      "machine_name": "SG06",
+      "machine_type_id": 18,
+      "is_active": 1
+    },
+    {
+      "machine_id": 31,
+      "machine_name": "SG07",
+      "machine_type_id": 18,
+      "is_active": 1
+    },
+    {
+      "machine_id": 32,
+      "machine_name": "SG08",
+      "machine_type_id": 18,
+      "is_active": 1
+    },
+    {
+      "machine_id": 33,
+      "machine_name": "WC01",
+      "machine_type_id": 19,
+      "is_active": 1
+    },
+    {
+      "machine_id": 34,
+      "machine_name": "WORKSHOP MT",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 35,
+      "machine_name": "AC01-15HP",
+      "machine_type_id": 9,
+      "is_active": 1
+    },
+    {
+      "machine_id": 36,
+      "machine_name": "AC03-30HP",
+      "machine_type_id": 9,
+      "is_active": 1
+    },
+    {
+      "machine_id": 37,
+      "machine_name": "DUMMY",
+      "machine_type_id": null,
+      "is_active": 1
+    },
+    {
+      "machine_id": 38,
+      "machine_name": "AC06-100HP",
+      "machine_type_id": 9,
+      "is_active": 1
+    },
+    {
+      "machine_id": 39,
+      "machine_name": "AD03-75HP",
+      "machine_type_id": 10,
+      "is_active": 1
+    },
+    {
+      "machine_id": 40,
+      "machine_name": "AD04-100HP",
+      "machine_type_id": 10,
+      "is_active": 1
+    },
+    {
+      "machine_id": 41,
+      "machine_name": "CL02",
+      "machine_type_id": 11,
+      "is_active": 1
+    },
+    {
+      "machine_id": 42,
+      "machine_name": "CT02",
+      "machine_type_id": 3,
+      "is_active": 1
+    },
+    {
+      "machine_id": 43,
+      "machine_name": "DY01",
+      "machine_type_id": 20,
+      "is_active": 1
+    },
+    {
+      "machine_id": 44,
+      "machine_name": "FL07-1.5T",
+      "machine_type_id": 21,
+      "is_active": 1
+    },
+    {
+      "machine_id": 45,
+      "machine_name": "FM01",
+      "machine_type_id": 22,
+      "is_active": 1
+    },
+    {
+      "machine_id": 46,
+      "machine_name": "FM02",
+      "machine_type_id": 22,
+      "is_active": 1
+    },
+    {
+      "machine_id": 47,
+      "machine_name": "FM03",
+      "machine_type_id": 22,
+      "is_active": 1
+    },
+    {
+      "machine_id": 48,
+      "machine_name": "HE01",
+      "machine_type_id": 23,
+      "is_active": 1
+    },
+    {
+      "machine_id": 49,
+      "machine_name": "OR01",
+      "machine_type_id": 24,
+      "is_active": 1
+    },
+    {
+      "machine_id": 50,
+      "machine_name": "PP01-110T-C",
+      "machine_type_id": 41,
+      "is_active": 1
+    },
+    {
+      "machine_id": 51,
+      "machine_name": "PP02-060T-C",
+      "machine_type_id": 41,
+      "is_active": 1
+    },
+    {
+      "machine_id": 52,
+      "machine_name": "PP03-060T",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 53,
+      "machine_name": "PP04-060T",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 54,
+      "machine_name": "PP05-060T",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 55,
+      "machine_name": "PP06-040T",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 56,
+      "machine_name": "PP07-016T",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 57,
+      "machine_name": "PP09-160T-C-A1",
+      "machine_type_id": 41,
+      "is_active": 1
+    },
+    {
+      "machine_id": 58,
+      "machine_name": "PP10-080T-C",
+      "machine_type_id": 41,
+      "is_active": 1
+    },
+    {
+      "machine_id": 59,
+      "machine_name": "PP11-035T",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 60,
+      "machine_name": "PP12-080T-C",
+      "machine_type_id": 41,
+      "is_active": 1
+    },
+    {
+      "machine_id": 61,
+      "machine_name": "PP13-060T",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 62,
+      "machine_name": "PP14-080T-C",
+      "machine_type_id": 41,
+      "is_active": 1
+    },
+    {
+      "machine_id": 63,
+      "machine_name": "PP15-080T",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 64,
+      "machine_name": "PP16-110T-A5",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 65,
+      "machine_name": "PP17-110T-A4",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 66,
+      "machine_name": "PP18-150T-A2",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 67,
+      "machine_name": "PP19-110T-C",
+      "machine_type_id": 41,
+      "is_active": 1
+    },
+    {
+      "machine_id": 68,
+      "machine_name": "PP20-110T-B4",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 69,
+      "machine_name": "PP21-110T-A3",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 70,
+      "machine_name": "PP22-060T",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 71,
+      "machine_name": "PP24-160T-C-B1",
+      "machine_type_id": 41,
+      "is_active": 1
+    },
+    {
+      "machine_id": 72,
+      "machine_name": "PP25-160T-B2",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 73,
+      "machine_name": "PP26-110T-B3",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 74,
+      "machine_name": "PP27-110T-A6",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 75,
+      "machine_name": "PP28-110T-B5",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 76,
+      "machine_name": "PP29-250T",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 77,
+      "machine_name": "PP30-200T-C",
+      "machine_type_id": 41,
+      "is_active": 1
+    },
+    {
+      "machine_id": 78,
+      "machine_name": "PP32-110T-C",
+      "machine_type_id": 41,
+      "is_active": 1
+    },
+    {
+      "machine_id": 79,
+      "machine_name": "RV01",
+      "machine_type_id": 26,
+      "is_active": 1
+    },
+    {
+      "machine_id": 80,
+      "machine_name": "SM01",
+      "machine_type_id": 40,
+      "is_active": 1
+    },
+    {
+      "machine_id": 81,
+      "machine_name": "STWS01-CS",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 82,
+      "machine_name": "STWS02-MANUAL",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 83,
+      "machine_name": "STWS03-ONLINE",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 84,
+      "machine_name": "STWS04-ASSY",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 85,
+      "machine_name": "STWS05-DB&CL",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 86,
+      "machine_name": "SW01",
+      "machine_type_id": 27,
+      "is_active": 1
+    },
+    {
+      "machine_id": 87,
+      "machine_name": "SW02",
+      "machine_type_id": 36,
+      "is_active": 1
+    },
+    {
+      "machine_id": 88,
+      "machine_name": "SW09",
+      "machine_type_id": 27,
+      "is_active": 1
+    },
+    {
+      "machine_id": 89,
+      "machine_name": "TP03",
+      "machine_type_id": 8,
+      "is_active": 1
+    },
+    {
+      "machine_id": 90,
+      "machine_name": "TP07",
+      "machine_type_id": 8,
+      "is_active": 1
+    },
+    {
+      "machine_id": 91,
+      "machine_name": "TP08",
+      "machine_type_id": 8,
+      "is_active": 1
+    },
+    {
+      "machine_id": 92,
+      "machine_name": "TP09",
+      "machine_type_id": 8,
+      "is_active": 1
+    },
+    {
+      "machine_id": 93,
+      "machine_name": "VM01",
+      "machine_type_id": 28,
+      "is_active": 1
+    },
+    {
+      "machine_id": 94,
+      "machine_name": "VM04",
+      "machine_type_id": 28,
+      "is_active": 1
+    },
+    {
+      "machine_id": 95,
+      "machine_name": "PB01-100T-3M",
+      "machine_type_id": 29,
+      "is_active": 1
+    },
+    {
+      "machine_id": 96,
+      "machine_name": "PB02-050T-2M",
+      "machine_type_id": 29,
+      "is_active": 1
+    },
+    {
+      "machine_id": 97,
+      "machine_name": "PB03-035T-2M",
+      "machine_type_id": 29,
+      "is_active": 1
+    },
+    {
+      "machine_id": 98,
+      "machine_name": "PB04-020T-1.2M",
+      "machine_type_id": 29,
+      "is_active": 1
+    },
+    {
+      "machine_id": 99,
+      "machine_name": "PB05-100T-3M",
+      "machine_type_id": 29,
+      "is_active": 1
+    },
+    {
+      "machine_id": 100,
+      "machine_name": "PB07-125T-3.2M",
+      "machine_type_id": 29,
+      "is_active": 1
+    },
+    {
+      "machine_id": 101,
+      "machine_name": "PB08-035T-2M",
+      "machine_type_id": 29,
+      "is_active": 1
+    },
+    {
+      "machine_id": 102,
+      "machine_name": "PP31-080T",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 103,
+      "machine_name": "RL01",
+      "machine_type_id": 30,
+      "is_active": 1
+    },
+    {
+      "machine_id": 104,
+      "machine_name": "SW05",
+      "machine_type_id": 27,
+      "is_active": 1
+    },
+    {
+      "machine_id": 105,
+      "machine_name": "SW12",
+      "machine_type_id": 2,
+      "is_active": 1
+    },
+    {
+      "machine_id": 106,
+      "machine_name": "SW13",
+      "machine_type_id": 27,
+      "is_active": 1
+    },
+    {
+      "machine_id": 107,
+      "machine_name": "SW14",
+      "machine_type_id": 27,
+      "is_active": 1
+    },
+    {
+      "machine_id": 108,
+      "machine_name": "TM02-010T",
+      "machine_type_id": 31,
+      "is_active": 1
+    },
+    {
+      "machine_id": 109,
+      "machine_name": "TM03-017T",
+      "machine_type_id": 31,
+      "is_active": 1
+    },
+    {
+      "machine_id": 110,
+      "machine_name": "TM05-020T",
+      "machine_type_id": 31,
+      "is_active": 1
+    },
+    {
+      "machine_id": 111,
+      "machine_name": "TM06-020T",
+      "machine_type_id": 31,
+      "is_active": 1
+    },
+    {
+      "machine_id": 112,
+      "machine_name": "TPWS01-CS",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 113,
+      "machine_name": "TPWS02-MANUAL",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 114,
+      "machine_name": "TPWS03-ONLINE",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 115,
+      "machine_name": "TPWS04-ASSY",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 116,
+      "machine_name": "TPWS05-DB&CL",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 117,
+      "machine_name": "FL04-1.5T",
+      "machine_type_id": 21,
+      "is_active": 1
+    },
+    {
+      "machine_id": 118,
+      "machine_name": "FL06-2.5T",
+      "machine_type_id": 21,
+      "is_active": 1
+    },
+    {
+      "machine_id": 119,
+      "machine_name": "WH01A-PK",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 120,
+      "machine_name": "WH01B-CSPK",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 121,
+      "machine_name": "FL03-2.5T",
+      "machine_type_id": 21,
+      "is_active": 1
+    },
+    {
+      "machine_id": 122,
+      "machine_name": "WH02A-PK",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 123,
+      "machine_name": "WH02B-CSPK",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 124,
+      "machine_name": "AWWS01-CS",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 125,
+      "machine_name": "AWWS02-MANUAL",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 126,
+      "machine_name": "AWWS03-ONLINE",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 127,
+      "machine_name": "AWWS04-ASSY",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 128,
+      "machine_name": "AWWS05-DB&CL",
+      "machine_type_id": 13,
+      "is_active": 1
+    },
+    {
+      "machine_id": 129,
+      "machine_name": "LVL01",
+      "machine_type_id": 32,
+      "is_active": 1
+    },
+    {
+      "machine_id": 130,
+      "machine_name": "LVL02",
+      "machine_type_id": 32,
+      "is_active": 1
+    },
+    {
+      "machine_id": 131,
+      "machine_name": "PP23-060T",
+      "machine_type_id": 25,
+      "is_active": 1
+    },
+    {
+      "machine_id": 132,
+      "machine_name": "SW03",
+      "machine_type_id": 42,
+      "is_active": 1
+    },
+    {
+      "machine_id": 133,
+      "machine_name": "SW04",
+      "machine_type_id": 27,
+      "is_active": 1
+    },
+    {
+      "machine_id": 134,
+      "machine_name": "SW06",
+      "machine_type_id": 27,
+      "is_active": 1
+    },
+    {
+      "machine_id": 135,
+      "machine_name": "SW08",
+      "machine_type_id": 42,
+      "is_active": 1
+    },
+    {
+      "machine_id": 136,
+      "machine_name": "TW01",
+      "machine_type_id": 33,
+      "is_active": 1
+    },
+    {
+      "machine_id": 137,
+      "machine_name": "TW02",
+      "machine_type_id": 33,
+      "is_active": 1
+    },
+    {
+      "machine_id": 138,
+      "machine_name": "TW03",
+      "machine_type_id": 33,
+      "is_active": 1
+    },
+    {
+      "machine_id": 139,
+      "machine_name": "WS01",
+      "machine_type_id": 34,
+      "is_active": 1
+    },
+    {
+      "machine_id": 140,
+      "machine_name": "WS02",
+      "machine_type_id": 34,
+      "is_active": 1
+    },
+    {
+      "machine_id": 141,
+      "machine_name": "WSA01",
+      "machine_type_id": 35,
+      "is_active": 1
+    },
+    {
+      "machine_id": 142,
+      "machine_name": "FL02-1.3T",
+      "machine_type_id": 21,
+      "is_active": 1
+    },
+    {
+      "machine_id": 143,
+      "machine_name": "FL08-2.5T",
+      "machine_type_id": 21,
+      "is_active": 1
+    },
+    {
+      "machine_id": 144,
+      "machine_name": "CL04",
+      "machine_type_id": 11,
+      "is_active": 1
+    },
+    {
+      "machine_id": 145,
+      "machine_name": "ML05",
+      "machine_type_id": 38,
+      "is_active": 1
+    },
+    {
+      "machine_id": 146,
+      "machine_name": "PP33-250T",
+      "machine_type_id": 41,
+      "is_active": 1
+    },
+    {
+      "machine_id": 147,
+      "machine_name": "SW15",
+      "machine_type_id": 36,
+      "is_active": 1
+    },
+    {
+      "machine_id": 148,
+      "machine_name": "ML06",
+      "machine_type_id": 17,
+      "is_active": 1
+    },
+    {
+      "machine_id": 149,
+      "machine_name": "BS02",
+      "machine_type_id": 3,
+      "is_active": 1
+    },
+    {
+      "machine_id": 150,
+      "machine_name": "SK01",
+      "machine_type_id": 39,
+      "is_active": 1
+    },
+    {
+      "machine_id": 151,
+      "machine_name": "SW16",
+      "machine_type_id": 27,
+      "is_active": 1
+    },
+    {
+      "machine_id": 152,
+      "machine_name": "LC01",
+      "machine_type_id": 3,
+      "is_active": 1
+    }
+  ],
+  "machine_types": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    38,
+    39,
+    40,
+    41,
+    42
+  ],
+  "routing_processes": [],
+  "working_hours": [
+    {
+      "day_of_week": 1,
+      "start_hour": "6:30:00",
+      "end_hour": "23:00:00",
+      "is_working_day": 1
+    },
+    {
+      "day_of_week": 1,
+      "start_hour": "18:00:00",
+      "end_hour": "19:30:00",
+      "is_working_day": 1
+    },
+    {
+      "day_of_week": 2,
+      "start_hour": "6:30:00",
+      "end_hour": "18:00:00",
+      "is_working_day": 1
+    },
+    {
+      "day_of_week": 2,
+      "start_hour": "18:00:00",
+      "end_hour": "19:30:00",
+      "is_working_day": 1
+    },
+    {
+      "day_of_week": 3,
+      "start_hour": "6:30:00",
+      "end_hour": "18:00:00",
+      "is_working_day": 1
+    },
+    {
+      "day_of_week": 3,
+      "start_hour": "18:00:00",
+      "end_hour": "19:30:00",
+      "is_working_day": 1
+    },
+    {
+      "day_of_week": 4,
+      "start_hour": "6:30:00",
+      "end_hour": "18:00:00",
+      "is_working_day": 1
+    },
+    {
+      "day_of_week": 4,
+      "start_hour": "18:00:00",
+      "end_hour": "19:30:00",
+      "is_working_day": 1
+    },
+    {
+      "day_of_week": 5,
+      "start_hour": "18:00:00",
+      "end_hour": "19:30:00",
+      "is_working_day": 1
+    },
+    {
+      "day_of_week": 5,
+      "start_hour": "6:30:00",
+      "end_hour": "18:00:00",
+      "is_working_day": 1
+    },
+    {
+      "day_of_week": 6,
+      "start_hour": "6:30:00",
+      "end_hour": "13:00:00",
+      "is_working_day": 1
+    },
+    {
+      "day_of_week": 7,
+      "start_hour": "0:00:00",
+      "end_hour": "23:59:59",
+      "is_working_day": 0
+    }
+  ],
+  "holidays": [],
+  "constraints": {
+    "max_working_hours_per_day": 24,
+    "setup_time_between_jobs": 0.5,
+    "maintenance_window": {
+      "day": 7,
+      "start_hour": 6,
+      "duration_hours": 4
+    }
+  }
+}

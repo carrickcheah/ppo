@@ -215,7 +215,6 @@ logic.md
 .mcp/
 z_dairy.md
 gantt_chart/
-agents/
 search_db.sh
 **/CLAUDE.local.md
 
@@ -232,3 +231,7 @@ z_MEMORY.md
 z_FLOWS.md
 documentation/
 stable-baselines3/
+ai_optimizer/
+
+
+
