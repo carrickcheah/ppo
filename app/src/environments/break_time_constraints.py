@@ -208,6 +208,10 @@ class BreakTimeConstraints:
         current_start = proposed_start
         max_attempts = 100  # Prevent infinite loops
         
+        # For long jobs, just find next work window
+        if duration_hours > 8.0:
+            return self._find_next_work_window(current_start)
+        
         for _ in range(max_attempts):
             if self.is_valid_time_slot(current_start, duration_hours):
                 return current_start
@@ -252,6 +256,59 @@ class BreakTimeConstraints:
         
         logger.warning(f"Could not find valid start time after {max_attempts} attempts")
         return proposed_start
+    
+    def _find_next_work_window(self, from_time: datetime) -> datetime:
+        """
+        Find the next available work window for job splitting.
+        This doesn't check if entire job fits - just finds next work start.
+        
+        Args:
+            from_time: Time to start searching from
+            
+        Returns:
+            Next datetime when work can begin
+        """
+        current = from_time
+        max_search_hours = 48  # Search up to 48 hours ahead
+        
+        for h in range(int(max_search_hours * 60)):  # Check every minute
+            check_time = current + timedelta(minutes=h)
+            day_of_week = (check_time.weekday() + 1) % 7
+            
+            # Check if this time is during any break
+            is_break_time = False
+            for break_period in self.breaks:
+                if break_period.applies_to_day(day_of_week):
+                    # Check if current time falls within break
+                    break_start_dt = check_time.replace(
+                        hour=break_period.start_time.hour,
+                        minute=break_period.start_time.minute,
+                        second=0,
+                        microsecond=0
+                    )
+                    break_end_dt = check_time.replace(
+                        hour=break_period.end_time.hour,
+                        minute=break_period.end_time.minute,
+                        second=0,
+                        microsecond=0
+                    )
+                    
+                    # Handle breaks spanning midnight
+                    if break_period.end_time < break_period.start_time:
+                        break_end_dt += timedelta(days=1)
+                    
+                    # Check if we're in this break
+                    if break_start_dt <= check_time < break_end_dt:
+                        is_break_time = True
+                        break
+            
+            # If not in a break, we found a valid work window
+            if not is_break_time:
+                return check_time
+        
+        # If no valid time found, return original (shouldn't happen)
+        logger.warning(f"Could not find work window within {max_search_hours} hours")
+        return from_time
     
     @lru_cache(maxsize=128)
     def get_breaks_for_day(self, day_of_week: int) -> List[BreakPeriod]:

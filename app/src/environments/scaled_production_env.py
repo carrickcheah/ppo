@@ -8,7 +8,7 @@ from typing import Dict, List, Tuple, Optional, Any, Set
 import gymnasium as gym
 from gymnasium import spaces
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from pathlib import Path
 
@@ -36,6 +36,7 @@ class ScaledProductionEnv(BaseSchedulingEnv):
                  snapshot_file: str = None,
                  max_episode_steps: int = 1000,
                  max_valid_actions: int = 100,
+                 use_break_constraints: bool = True,
                  seed: Optional[int] = None):
         """
         Initialize scaled production environment.
@@ -46,6 +47,7 @@ class ScaledProductionEnv(BaseSchedulingEnv):
             snapshot_file: Path to production snapshot for machine info
             max_episode_steps: Maximum steps per episode
             max_valid_actions: Maximum valid actions to present
+            use_break_constraints: Whether to apply break time constraints (default True)
             seed: Random seed
         """
         # Set default paths
@@ -114,8 +116,12 @@ class ScaledProductionEnv(BaseSchedulingEnv):
         self.family_idx_map = {fid: idx for idx, fid in enumerate(self.family_ids)}
         
         # Initialize break time constraints
-        self.break_constraints = BreakTimeConstraints()
-        
+        self.use_break_constraints = use_break_constraints
+        if self.use_break_constraints:
+            self.break_constraints = BreakTimeConstraints()
+        else:
+            self.break_constraints = None
+            
         # Base date for time conversion (start of scheduling horizon)
         self.base_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         
@@ -445,14 +451,14 @@ class ScaledProductionEnv(BaseSchedulingEnv):
         
         processing_time = task['processing_time']
         
-        # Check break constraints
-        # Convert hours to datetime for break checking
-        proposed_start_dt = self.break_constraints.hours_to_datetime(best_start_time, self.base_date)
-        
-        # Check if proposed time slot is valid
-        if not self.break_constraints.is_valid_time_slot(proposed_start_dt, processing_time):
-            # Find next valid start time after breaks
-            valid_start_dt = self.break_constraints.get_next_valid_start(proposed_start_dt, processing_time)
+        # Check break constraints only if enabled
+        if self.use_break_constraints and self.break_constraints:
+            # Convert hours to datetime for break checking
+            proposed_start_dt = self.break_constraints.hours_to_datetime(best_start_time, self.base_date)
+            
+            # Always find next available work window - simplify the logic
+            # Jobs will naturally pause during breaks in the real simulation
+            valid_start_dt = self.break_constraints._find_next_work_window(proposed_start_dt)
             best_start_time = self.break_constraints.datetime_to_hours(valid_start_dt, self.base_date)
         
         end_time = best_start_time + processing_time

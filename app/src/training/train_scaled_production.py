@@ -76,8 +76,8 @@ def create_env(seed=None):
         n_machines=40,
         max_episode_steps=1000,
         max_valid_actions=100,
-        data_file='app/data/large_production_data.json',
-        snapshot_file='app/data/production_snapshot_latest.json',
+        data_file='data/large_production_data.json',
+        snapshot_file='data/production_snapshot_latest.json',
         seed=seed
     )
     return Monitor(env)
@@ -197,7 +197,7 @@ def main():
     print("Scaling from 10 to 40 machines with 50 families\n")
     
     # Load configuration
-    config_path = Path("app/configs/scaled_production_config.yaml")
+    config_path = Path("configs/scaled_production_config.yaml")
     if config_path.exists():
         with open(config_path, 'r') as f:
             config = yaml.safe_load(f)
@@ -257,8 +257,8 @@ def main():
     
     eval_callback = EvalCallback(
         eval_env,
-        best_model_save_path='./models/scaled_production/',
-        log_path='./logs/scaled_production/',
+        best_model_save_path='models/scaled_production/',
+        log_path='logs/scaled_production/',
         eval_freq=10000,
         deterministic=True,
         render=False,
@@ -283,7 +283,7 @@ def main():
     print(f"\nTraining completed in {training_time/60:.1f} minutes")
     
     # Save model
-    model_path = "./models/scaled_production/final_model"
+    model_path = "models/scaled_production/final_model"
     model.save(model_path)
     print(f"Model saved to: {model_path}")
     
@@ -299,7 +299,14 @@ def main():
     )
     
     # Get detailed metrics
-    env = ScaledProductionEnv(seed=123)
+    env = ScaledProductionEnv(
+        n_machines=40,
+        max_episode_steps=1000,
+        max_valid_actions=100,
+        data_file='data/large_production_data.json',
+        snapshot_file='data/production_snapshot_latest.json',
+        seed=123
+    )
     makespans = []
     utilizations = []
     setup_ratios = []
@@ -404,7 +411,7 @@ def main():
         'config': config
     }
     
-    results_path = "./logs/scaled_production/training_results.json"
+    results_path = "logs/scaled_production/training_results.json"
     os.makedirs(os.path.dirname(results_path), exist_ok=True)
     with open(results_path, 'w') as f:
         json.dump(results, f, indent=2)
