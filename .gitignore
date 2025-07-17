@@ -232,6 +232,64 @@ z_FLOWS.md
 documentation/
 stable-baselines3/
 ai_optimizer/
+models/
+visualizations/
 
+# ML Project specific additions
+app/models/
+app/visualizations/
+app/tensorboard/
+tensorboard/
 
+# Model files
+*.zip
+*.h5
+*.pth
+*.onnx
+*.pb
+*.tflite
+*.safetensors
+*.pt
+*.bin
+*.ckpt
+*.keras
 
+# TensorBoard specific
+events.out.tfevents.*
+**/events.out.tfevents.*
+
+# Image files (if you want to exclude them)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.svg
+*.ico
+
+# Data files
+*.hdf5
+*.h5
+*.feather
+*.csv
+*.tsv
+*.json
+*.xml
+*.yaml
+*.yml
+
+# UV/uv specific
+uv.lock
+.python-version
+
+# Notebooks artifacts
+*.nbconvert.ipynb
+.virtual_documents/
+
+# ML experiment tracking
+mlruns/
+*.mlflow
+wandb/
+.neptune/
+.aim/
+.clearml/
