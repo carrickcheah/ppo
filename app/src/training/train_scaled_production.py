@@ -111,11 +111,13 @@ def evaluate_baselines(env_class, n_episodes=10):
             steps = 0
             
             while not done and steps < 1000:
-                valid_actions = env.valid_actions
+                # Get the underlying environment if wrapped in Monitor
+                base_env = env.unwrapped if hasattr(env, 'unwrapped') else env
+                valid_actions = base_env.valid_actions
                 if not valid_actions:
                     break
                     
-                action = strategy(env, valid_actions)
+                action = strategy(base_env, valid_actions)
                 action = min(action, len(valid_actions) - 1)
                 
                 obs, reward, terminated, truncated, info = env.step(action)
@@ -123,16 +125,18 @@ def evaluate_baselines(env_class, n_episodes=10):
                 total_reward += reward
                 steps += 1
             
-            makespans.append(env.episode_makespan)
+            # Get the underlying environment for metrics
+            base_env = env.unwrapped if hasattr(env, 'unwrapped') else env
+            makespans.append(base_env.episode_makespan)
             rewards.append(total_reward)
-            if hasattr(env, 'machine_utilization'):
-                utilizations.append(np.mean(env.machine_utilization))
+            if hasattr(base_env, 'machine_utilization'):
+                utilizations.append(np.mean(base_env.machine_utilization))
         
         results[name] = {
-            'mean_makespan': np.mean(makespans),
-            'mean_reward': np.mean(rewards),
-            'mean_utilization': np.mean(utilizations) if utilizations else 0,
-            'completion_rate': len([m for m in makespans if m > 0]) / n_episodes
+            'mean_makespan': float(np.mean(makespans)),
+            'mean_reward': float(np.mean(rewards)),
+            'mean_utilization': float(np.mean(utilizations)) if utilizations else 0,
+            'completion_rate': float(len([m for m in makespans if m > 0]) / n_episodes)
         }
         
     return results

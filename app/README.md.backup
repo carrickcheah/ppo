@@ -1,0 +1,1067 @@
+# Deep Reinforcement Learning Scheduling System
+
+## Project Status: Phase 4 In Progress (Week 12 of 16)
+
+### Current Achievement
+- **Curriculum Learning Success**: Scaled from 2 → 10 → 40 → 152 machines
+- **Best Performance**: 19.7h makespan on 40 machines (Phase 3)
+- **Current Scale**: 152 machines, 500+ jobs (Phase 4 - 40% complete)
+- **State Compression**: Successfully reduced from 505 to 60 features
+
+## Project Location
+This project is located at: `/Users/carrickcheah/Project/ppo/app`
+
+## Table of Contents
+1. [Overview & Architecture](#overview--architecture)
+2. [Completed Phases](#completed-phases)
+3. [Current Phase: Full Production Scale](#current-phase-full-production-scale)
+4. [Upcoming Phases](#upcoming-phases)
+5. [Development Workflow](#development-workflow)
+6. [Technical Implementation](#technical-implementation)
+7. [Success Metrics](#success-metrics)
+
+## Overview & Architecture
+
+### System Architecture Flow
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Current System                            │
+├─────────────────────────────────────────────────────────────────┤
+│   MariaDB → Data Ingestion → Greedy Solver → Schedule → API    │
+│      ↓            ↓              ↓              ↓         ↓      │
+│   [Jobs]    [Constraints]   [Priorities]   [Output]   [Report]  │
+└─────────────────────────────────────────────────────────────────┘
+                                 ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                      Target RL System                            │
+├─────────────────────────────────────────────────────────────────┤
+│   MariaDB → Environment → PPO Agent → Schedule → Validator → API│
+│      ↓          ↓            ↓           ↓          ↓        ↓   │
+│   [Jobs]    [State]      [Actions]   [Output]  [Safety]  [Report]│
+│                ↓            ↓                                    │
+│            [Reward]    [Neural Network]                          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Completed Phases
+
+### Phase 1-2: Foundation & Toy Environment (Weeks 1-4) ✅
+- **Achievement**: Built and trained PPO agent on 2 machines, 5 jobs
+- **Performance**: 81.25% utilization, 20-33% better than random
+- **Key Learning**: Basic RL concepts, PPO implementation, reward design
+
+### Phase 3: Scaled Production (Weeks 5-8) ✅
+- **Achievement**: Successfully scaled to 40 machines with real production data
+- **Performance**: 
+  - 10 machines: 86.3h makespan
+  - 20 machines: 21.0h makespan  
+  - 40 machines: 19.7h makespan (best result)
+- **Key Features**: 
+  - Boolean importance system (replaced 1-5 priority)
+  - Machine type constraints
+  - Setup time optimization
+  - Break time constraints
+
+### Project Structure with UV
+```
+app/
+├── src/
+│   ├── __init__.py
+│   ├── agents/
+│   │   ├── __init__.py
+│   │   ├── networks.py          # Neural network architectures
+│   │   ├── policies.py          # Custom policies
+│   │   └── ppo_agent.py         # PPO implementation
+│   ├── deployment/
+│   │   ├── __init__.py
+│   │   ├── api_integration.py   # FastAPI integration
+│   │   ├── monitoring.py        # Real-time monitoring
+│   │   └── safe_scheduler.py    # Production wrapper
+│   ├── environments/
+│   │   ├── __init__.py
+│   │   ├── base_env.py          # Abstract base class
+│   │   ├── medium_env.py        # 10-machine with constraints
+│   │   ├── production_env.py    # Full 74-machine environment
+│   │   └── toy_env.py           # Simple 2-machine environment
+│   ├── evaluation/
+│   │   ├── __init__.py
+│   │   ├── benchmark.py         # Compare with greedy
+│   │   ├── historical_test.py   # Test on past data
+│   │   └── stress_test.py       # Edge case testing
+│   ├── training/
+│   │   ├── __init__.py
+│   │   ├── hyperparameter_tuning.py
+│   │   ├── train_medium.py
+│   │   ├── train_production.py
+│   │   └── train_toy.py
+│   └── utils/
+│       ├── __init__.py
+│       ├── data_loader.py       # Database connections
+│       ├── metrics.py           # Performance metrics
+│       ├── validators.py        # Constraint checking
+│       └── visualizers.py       # Schedule visualization
+├── configs/
+│   ├── medium_config.yaml
+│   ├── production_config.yaml
+│   └── toy_config.yaml
+├── notebooks/
+│   └── exploratory_analysis.ipynb
+├── tests/
+│   └── test_*.py
+├── .gitignore
+├── .python-version             # Python version for UV
+├── pyproject.toml              # UV project configuration
+├── README.md
+└── uv.lock                     # Lock file (auto-generated)
+```
+
+## Current Phase: Full Production Scale
+
+### Phase 4: Scale to 152 Machines (Weeks 9-12) 🟡 In Progress
+- **Status**: Training 40% complete (400k/1M steps)
+- **Scale**: 152 machines (151 active + 1 DUMMY), 500+ jobs
+- **Key Achievements**:
+  - Successfully extracted all machines from MariaDB database
+  - Implemented hierarchical state compression (505 → 60 features)
+  - Handled 42 different machine types (capped at 10 for state space)
+  - Fixed multiple technical challenges during scale-up
+- **Training Configuration**:
+  - Transfer learning attempted (Phase 3 model not available)
+  - Conservative learning rate (1e-5)
+  - 8 parallel environments
+  - Hierarchical observation space
+
+### Development Commands with UV
+```bash
+# Add new dependency
+uv add torch torchvision
+
+# Add dev dependency
+uv add --dev pytest-benchmark
+
+# Update dependencies
+uv sync
+
+# Run scripts
+uv run python src/training/train_toy.py
+
+# Run tests
+uv run pytest
+
+# Format code
+uv run ruff format .
+
+# Lint code
+uv run ruff check .
+
+# Type check
+uv run mypy src/
+```
+
+## Upcoming Phases
+
+### Phase 5: Validation & Safety (Weeks 13-14) 📅
+- Comprehensive constraint satisfaction testing
+- Safety wrapper implementation with fallback to greedy
+- Performance benchmarking against baselines
+- Stress testing with edge cases
+
+### Phase 6: Production Deployment (Weeks 15-16) 📅
+- Shadow mode deployment (parallel to production)
+- Gradual rollout (10% → 25% → 50% → 100%)
+- Real-time monitoring dashboard
+- Final performance validation
+
+## Development Workflow
+
+### Current Daily Cycle
+```
+Morning (2-3 hours):
+├── Review previous day's training logs
+├── Analyze failure cases
+├── Adjust hyperparameters/rewards
+└── Start new training runs
+
+Afternoon (3-4 hours):
+├── Implement new features
+├── Write tests
+├── Code review (if team)
+└── Documentation
+
+Evening (1 hour):
+├── Monitor training progress
+├── Log findings in journal
+└── Plan next day
+```
+
+### Weekly Sprint Cycle
+```
+Monday:
+├── Sprint planning
+├── Define week's objectives
+└── Setup experiments
+
+Tuesday-Thursday:
+├── Core development
+├── Training runs
+└── Iterative improvements
+
+Friday:
+├── Evaluation & benchmarking
+├── Document results
+├── Demo to stakeholders
+└── Plan next sprint
+```
+
+## Technical Implementation
+
+### Environment Setup with UV
+
+```bash
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Or on macOS with Homebrew
+brew install uv
+
+# Project initialization
+cd /Users/carrickcheah/Project/ppo/app
+uv init
+```
+
+Create `pyproject.toml`:
+```toml
+[project]
+name = "scheduling-rl"
+version = "0.1.0"
+description = "Deep RL scheduling system using PPO"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "stable-baselines3[extra]>=2.1.0",
+    "gymnasium>=0.29.1",
+    "tensorboard>=2.15.0",
+    "pandas>=2.1.4",
+    "numpy>=1.26.2",
+    "mysql-connector-python>=8.2.0",
+    "pyyaml>=6.0.1",
+    "matplotlib>=3.8.2",
+    "seaborn>=0.13.0",
+    "plotly>=5.18.0",
+    "flask>=3.0.0",
+    "optuna>=3.5.0",
+    "pytest>=7.4.3",
+    "black>=23.12.1",
+    "ruff>=0.1.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ipykernel>=6.28.0",
+    "jupyter>=1.0.0",
+    "pytest-cov>=4.1.0",
+    "mypy>=1.8.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = [
+    "ipykernel>=6.29.5",
+    "jupyter>=1.1.1",
+    "pytest-cov>=5.0.0",
+    "mypy>=1.11.2",
+]
+
+[tool.ruff]
+# Same as Black
+line-length = 88
+indent-width = 4
+
+# Python 3.11
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501", # line too long (handled by formatter)
+]
+
+[tool.ruff.format]
+# Like Black
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+addopts = "-v --cov=src --cov-report=html"
+```
+
+### Quick Start
+```bash
+# Activate virtual environment
+cd /Users/carrickcheah/Project/ppo/app
+source .venv/bin/activate
+
+# Install dependencies
+uv sync
+
+# Check current training status
+uv run python check_training_status.py
+
+# Resume Phase 4 training
+uv run python src/training/train_full_production.py --resume
+```
+
+### Key Components Implemented
+
+#### Environments
+1. **ToySchedulingEnv** (`toy_env.py`): 2 machines, 5 jobs for learning basics
+2. **MediumEnvBoolean** (`medium_env_boolean.py`): 10 machines with boolean importance
+3. **ScaledProductionEnv** (`scaled_production_env.py`): 40 machines with full constraints
+4. **FullProductionEnv** (`full_production_env.py`): 152 machines with state compression
+
+#### Key Features
+- **State Compression**: Hierarchical (60), Compressed (20), or Full (505) features
+- **Boolean Importance**: Simplified from 1-5 priority system
+- **Break Time Constraints**: Integrated with MariaDB `ai_breaktimes` table
+- **Machine Type Handling**: 42 types compressed to 10 for state space
+- **Transfer Learning**: Support for loading previous phase models
+- **Parallel Training**: 8 concurrent environments for efficiency
+
+### Database Integration
+- **MariaDB Connection**: Using `pymysql` for production data
+- **Tables Used**: 
+  - `tbl_machine`: Machine configurations (151 machines)
+  - `ai_breaktimes`: Break schedules and working hours
+  - `ai_holidays`: Holiday calendar (future integration)
+- **Data Pipeline**: Extract → Transform → Environment → Train
+
+### Training Pipeline
+1. **Curriculum Learning**: Start small, scale gradually
+2. **Transfer Learning**: Load previous phase models
+3. **Parallel Training**: Multiple environments for efficiency
+4. **Checkpointing**: Save every 50,000 steps
+5. **Evaluation**: Compare with Random, FirstFit, Priority baselines
+
+### Current Models and Results
+- **Phase 1-2**: Toy model achieved 81.25% utilization
+- **Phase 3**: Best model at 40 machines - 19.7h makespan
+- **Phase 4**: Training in progress (checkpoint at 400k steps)
+
+## Performance Benchmarks
+
+| Phase | Scale | Best Result | Status |
+|-------|-------|-------------|---------|
+| Phase 1-2 | 2 machines, 5 jobs | 81.25% utilization | ✅ Complete |
+| Phase 3 | 40 machines, 172 jobs | 19.7h makespan | ✅ Complete |
+| Phase 4 | 152 machines, 500+ jobs | Training... | 🟡 40% done |
+
+### Key Technical Challenges Solved
+
+1. **Observation Space Mismatch**: Fixed by calling `_update_observation_space()` in environment init
+2. **Machine Type Handling**: Capped 42 types to 10 for fixed state size
+3. **NaN Data Handling**: Added validation for database extraction
+4. **Activation Function**: Switched from None to nn.Tanh for PPO
+5. **Date Handling**: Fixed datetime object method calls
+
+### Current Files Structure
+- `src/environments/`: All environment implementations
+- `src/training/`: Training scripts for each phase
+- `src/utils/`: Database connectors, data parsers, visualizers
+- `configs/`: YAML configuration files
+- `models/`: Saved model checkpoints
+- `data/`: Generated datasets and snapshots
+
+## Future Work
+
+### Planned Enhancements
+1. **Dynamic Job Arrivals**: Handle real-time job submissions
+2. **Machine Breakdowns**: Recovery and rescheduling strategies
+3. **Multi-Objective Optimization**: Balance makespan, energy, quality
+4. **Distributed Training**: Scale to multiple GPUs
+5. **Online Learning**: Continuous improvement in production
+
+## Monitoring and Operations
+
+### Real-time Metrics
+- **Training Progress**: TensorBoard logs in `./logs/`
+- **Model Checkpoints**: Saved every 50k steps in `./models/`
+- **Performance Tracking**: Episode rewards, makespan, utilization
+- **Constraint Violations**: Logged for debugging
+
+### Deployment Strategy
+1. **Shadow Mode**: Run parallel to production without impact
+2. **A/B Testing**: Compare RL vs greedy on subset of jobs
+3. **Gradual Rollout**: 10% → 25% → 50% → 100% traffic
+4. **Fallback Ready**: Automatic switch to greedy if constraints violated
+5. **Monitoring Dashboard**: Real-time performance tracking
+        """Load machine configurations from database"""
+        conn = mysql.connector.connect(**self.db_config)
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT machine_id, machine_type, capacity,
+                   setup_time_same, setup_time_different
+            FROM machines
+            WHERE status = 'ACTIVE'
+        """)
+        
+        self.machines = {m['machine_id']: m for m in cursor.fetchall()}
+        self.n_machines = len(self.machines)
+        
+        conn.close()
+        
+    def _load_process_sequences(self):
+        """Extract family process sequences"""
+        conn = mysql.connector.connect(**self.db_config)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT DISTINCT family_name, process_order
+            FROM production_jobs
+            WHERE created_at > DATE_SUB(NOW(), INTERVAL 180 DAY)
+            ORDER BY family_name, 
+                     CAST(SUBSTRING_INDEX(process_order, 'P', -1) AS UNSIGNED)
+        """)
+        
+        self.family_sequences = defaultdict(list)
+        for family, process in cursor.fetchall():
+            self.family_sequences[family].append(process)
+            
+        conn.close()
+        
+    def _load_current_jobs(self):
+        """Load jobs that need scheduling"""
+        conn = mysql.connector.connect(**self.db_config)
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT job_id, family_name, process_order,
+                   processing_time, priority, lcd_date,
+                   plan_date, machine_type
+            FROM production_jobs
+            WHERE status IN ('PENDING', 'READY')
+            AND plan_date <= DATE_ADD(NOW(), INTERVAL %s DAY)
+            ORDER BY priority DESC, plan_date ASC
+            LIMIT 500
+        """, (self.planning_horizon,))
+        
+        self.jobs = cursor.fetchall()
+        self.n_jobs = len(self.jobs)
+        
+        # Calculate derived features
+        for job in self.jobs:
+            job['days_late'] = max(0, (datetime.now() - job['plan_date']).days)
+            job['lcd_urgency'] = (job['lcd_date'] - datetime.now()).days
+            
+        conn.close()
+        
+    def _setup_spaces(self):
+        """Define observation and action spaces"""
+        # State vector size
+        machine_features = 4  # utilization, avg_lateness, job_count, hours_busy
+        job_features = 8      # priority, days_late, proc_time, etc.
+        global_features = 10  # time, day_of_week, etc.
+        
+        state_size = (self.n_machines * machine_features + 
+                     min(self.n_jobs, 100) * job_features + 
+                     global_features)
+        
+        self.observation_space = gym.spaces.Box(
+            low=0, high=1,
+            shape=(state_size,),
+            dtype=np.float32
+        )
+        
+        # Actions: schedule job i on machine j or wait
+        self.action_space = gym.spaces.Discrete(
+            self.n_jobs + 1  # +1 for wait action
+        )
+```
+
+### Week 10: State & Action Design
+
+#### State Engineering Workflow
+```
+1. Feature Selection
+   ├── Domain knowledge
+   ├── Correlation analysis
+   └── Dimensionality reduction
+
+2. Normalization Strategy
+   ├── Min-max scaling
+   ├── Standardization
+   └── Custom transforms
+
+3. Temporal Features
+   ├── Time encoding
+   ├── Cyclical features
+   └── Trend indicators
+
+4. Validation
+   ├── State coverage
+   ├── Information content
+   └── Stability
+```
+
+### Week 11: Reward Engineering
+
+#### Reward Design Principles
+```
+1. Align with Business KPIs
+   ├── On-time delivery rate
+   ├── Machine utilization
+   └── Overtime costs
+
+2. Balance Multiple Objectives
+   ├── Weighted sum
+   ├── Hierarchical rewards
+   └── Constraint penalties
+
+3. Avoid Reward Hacking
+   ├── Test edge cases
+   ├── Monitor behavior
+   └── Iterative refinement
+```
+
+### Week 12: Training at Scale
+
+#### Distributed Training Setup
+```python
+# train_production.py
+from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines3.common.utils import set_random_seed
+
+def make_env(rank, seed=0):
+    """Create environment instance for parallel training"""
+    def _init():
+        env = ProductionSchedulingEnv(db_config)
+        env.seed(seed + rank)
+        return env
+    set_random_seed(seed)
+    return _init
+
+# Create parallel environments
+n_envs = 8
+env = SubprocVecEnv([make_env(i) for i in range(n_envs)])
+
+# Scaled hyperparameters
+model = PPO(
+    CustomSchedulingPolicy,
+    env,
+    learning_rate=linear_schedule(3e-4),
+    n_steps=2048 * n_envs,  # Scale with envs
+    batch_size=256,
+    n_epochs=10,
+    gamma=0.99,
+    gae_lambda=0.95,
+    clip_range=0.2,
+    max_grad_norm=0.5,
+    vf_coef=0.5,
+    ent_coef=0.01,
+    tensorboard_log="./logs/production/",
+    device='cuda'  # Use GPU
+)
+
+# Training with curriculum
+curriculum_stages = [
+    {'timesteps': 1_000_000, 'job_limit': 50},
+    {'timesteps': 2_000_000, 'job_limit': 100},
+    {'timesteps': 5_000_000, 'job_limit': 200},
+    {'timesteps': 10_000_000, 'job_limit': 500}
+]
+
+for stage in curriculum_stages:
+    print(f"Training stage: {stage['job_limit']} jobs")
+    env.env_method('set_job_limit', stage['job_limit'])
+    model.learn(
+        total_timesteps=stage['timesteps'],
+        reset_num_timesteps=False,
+        callback=[eval_callback, checkpoint_callback]
+    )
+```
+
+## Phase 5: Validation & Safety (Weeks 13-14)
+
+### Week 13: Comprehensive Testing
+
+#### Test Suite Development
+```python
+# test_suite.py
+class SchedulingTestSuite:
+    """Comprehensive testing for RL scheduler"""
+    
+    def __init__(self, model, env_class):
+        self.model = model
+        self.env_class = env_class
+        self.test_results = {}
+        
+    def test_constraint_satisfaction(self, n_episodes=100):
+        """Test all hard constraints"""
+        violations = {
+            'dependency': 0,
+            'machine_compatibility': 0,
+            'time_overlap': 0,
+            'working_hours': 0
+        }
+        
+        for _ in range(n_episodes):
+            env = self.env_class()
+            obs = env.reset()
+            done = False
+            
+            while not done:
+                action, _ = self.model.predict(obs)
+                obs, _, done, info = env.step(action)
+                
+                # Check violations
+                if 'constraint_violation' in info:
+                    violations[info['violation_type']] += 1
+                    
+        self.test_results['constraints'] = violations
+        return all(v == 0 for v in violations.values())
+        
+    def test_stress_scenarios(self):
+        """Test edge cases and stress scenarios"""
+        scenarios = [
+            {'name': 'all_urgent', 'setup': self._setup_all_urgent},
+            {'name': 'machine_breakdown', 'setup': self._setup_breakdown},
+            {'name': 'rush_order', 'setup': self._setup_rush_order},
+            {'name': 'overload', 'setup': self._setup_overload}
+        ]
+        
+        for scenario in scenarios:
+            env = self.env_class()
+            scenario['setup'](env)
+            
+            # Run episode
+            obs = env.reset()
+            done = False
+            metrics = self._run_episode(env, obs)
+            
+            self.test_results[scenario['name']] = metrics
+            
+    def test_performance_metrics(self):
+        """Measure KPIs across scenarios"""
+        metrics = {
+            'avg_lateness': [],
+            'makespan': [],
+            'utilization': [],
+            'overtime_hours': [],
+            'setup_time': []
+        }
+        
+        for _ in range(100):
+            env = self.env_class()
+            schedule = self._generate_schedule(env)
+            
+            # Calculate metrics
+            metrics['avg_lateness'].append(self._calc_avg_lateness(schedule))
+            metrics['makespan'].append(self._calc_makespan(schedule))
+            metrics['utilization'].append(self._calc_utilization(schedule))
+            metrics['overtime_hours'].append(self._calc_overtime(schedule))
+            metrics['setup_time'].append(self._calc_setup_time(schedule))
+            
+        # Summary statistics
+        self.test_results['performance'] = {
+            metric: {
+                'mean': np.mean(values),
+                'std': np.std(values),
+                'min': np.min(values),
+                'max': np.max(values)
+            }
+            for metric, values in metrics.items()
+        }
+        
+    def generate_report(self):
+        """Generate comprehensive test report"""
+        report = []
+        report.append("=== RL Scheduler Test Report ===\n")
+        
+        # Constraint satisfaction
+        report.append("1. Constraint Satisfaction:")
+        for constraint, violations in self.test_results['constraints'].items():
+            status = "✓ PASS" if violations == 0 else f"✗ FAIL ({violations} violations)"
+            report.append(f"   - {constraint}: {status}")
+            
+        # Stress tests
+        report.append("\n2. Stress Test Results:")
+        for scenario, metrics in self.test_results.items():
+            if scenario.startswith('test_'):
+                report.append(f"   - {scenario}: {metrics}")
+                
+        # Performance
+        report.append("\n3. Performance Metrics:")
+        for metric, stats in self.test_results['performance'].items():
+            report.append(f"   - {metric}:")
+            report.append(f"     Mean: {stats['mean']:.2f} (±{stats['std']:.2f})")
+            report.append(f"     Range: [{stats['min']:.2f}, {stats['max']:.2f}]")
+            
+        return "\n".join(report)
+```
+
+### Week 14: Safety Wrapper Implementation
+
+#### Production Safety Architecture
+```python
+# safe_scheduler.py
+import logging
+from enum import Enum
+from typing import List, Dict, Optional
+
+class ScheduleStatus(Enum):
+    VALID = "valid"
+    INVALID = "invalid"
+    PARTIAL = "partial"
+
+class SafetyValidator:
+    """Validate schedules against all constraints"""
+    
+    def __init__(self, config):
+        self.config = config
+        self.logger = logging.getLogger(__name__)
+        
+    def validate_schedule(self, schedule: List[Dict]) -> ScheduleStatus:
+        """Complete validation of proposed schedule"""
+        
+        checks = [
+            self._check_dependencies,
+            self._check_machine_compatibility,
+            self._check_time_overlaps,
+            self._check_working_hours,
+            self._check_capacity_limits
+        ]
+        
+        for check in checks:
+            if not check(schedule):
+                return ScheduleStatus.INVALID
+                
+        return ScheduleStatus.VALID
+        
+    def _check_dependencies(self, schedule):
+        """Verify all job dependencies are respected"""
+        scheduled_jobs = {job['job_id']: job for job in schedule}
+        
+        for job in schedule:
+            if 'dependencies' in job:
+                for dep_id in job['dependencies']:
+                    if dep_id not in scheduled_jobs:
+                        self.logger.error(f"Missing dependency {dep_id} for {job['job_id']}")
+                        return False
+                        
+                    dep_job = scheduled_jobs[dep_id]
+                    if dep_job['end_time'] > job['start_time']:
+                        self.logger.error(f"Dependency violation: {dep_id} -> {job['job_id']}")
+                        return False
+                        
+        return True
+
+class SafeRLScheduler:
+    """Production-safe RL scheduler with fallback"""
+    
+    def __init__(self, model_path: str, db_config: dict):
+        self.rl_model = PPO.load(model_path)
+        self.greedy_solver = GreedySolver(db_config)
+        self.validator = SafetyValidator(db_config)
+        self.logger = logging.getLogger(__name__)
+        
+        # Metrics
+        self.rl_success_rate = 0.95  # Track success rate
+        self.fallback_count = 0
+        
+    def schedule(self, jobs: List[Dict], confidence_threshold: float = 0.8):
+        """Generate schedule with safety guarantees"""
+        
+        try:
+            # Attempt RL scheduling
+            if self.rl_success_rate > confidence_threshold:
+                rl_schedule = self._rl_schedule(jobs)
+                
+                # Validate
+                status = self.validator.validate_schedule(rl_schedule)
+                
+                if status == ScheduleStatus.VALID:
+                    self._update_success_rate(True)
+                    return rl_schedule
+                else:
+                    self.logger.warning("RL schedule invalid, using fallback")
+                    self._update_success_rate(False)
+                    
+        except Exception as e:
+            self.logger.error(f"RL scheduling failed: {e}")
+            
+        # Fallback to greedy
+        self.fallback_count += 1
+        return self.greedy_solver.solve(jobs)
+        
+    def _rl_schedule(self, jobs):
+        """Generate schedule using RL model"""
+        # Create environment with current jobs
+        env = ProductionSchedulingEnv.from_jobs(jobs)
+        obs = env.reset()
+        
+        schedule = []
+        done = False
+        
+        while not done:
+            action, _ = self.rl_model.predict(obs, deterministic=True)
+            obs, _, done, info = env.step(action)
+            
+            if 'scheduled_job' in info:
+                schedule.append(info['scheduled_job'])
+                
+        return schedule
+        
+    def _update_success_rate(self, success: bool):
+        """Update rolling success rate"""
+        # Exponential moving average
+        alpha = 0.1
+        self.rl_success_rate = alpha * (1.0 if success else 0.0) + (1 - alpha) * self.rl_success_rate
+```
+
+## Phase 6: Production Deployment (Weeks 15-16)
+
+### Week 15: Pilot Deployment
+
+#### Deployment Workflow
+```
+1. Pre-deployment Checklist
+   ├── Model artifacts ready
+   ├── Monitoring setup
+   ├── Rollback plan
+   └── Team training
+
+2. Shadow Mode Deployment
+   ├── Run parallel to production
+   ├── Compare outputs
+   ├── Log all decisions
+   └── No real impact
+
+3. Limited Production
+   ├── Start with 10% traffic
+   ├── Low-priority jobs only
+   ├── Monitor closely
+   └── Daily reviews
+
+4. Gradual Rollout
+   ├── Increase percentage
+   ├── Add job types
+   ├── Expand time windows
+   └── Full deployment
+```
+
+#### Monitoring Dashboard
+```python
+# monitoring.py
+from flask import Flask, render_template
+import plotly.graph_objs as go
+import pandas as pd
+
+app = Flask(__name__)
+
+class SchedulerMonitor:
+    """Real-time monitoring for RL scheduler"""
+    
+    def __init__(self, db_config):
+        self.db_config = db_config
+        self.metrics = {
+            'lateness': [],
+            'utilization': [],
+            'fallback_rate': [],
+            'constraint_violations': []
+        }
+        
+    @app.route('/dashboard')
+    def dashboard(self):
+        """Main monitoring dashboard"""
+        
+        # Fetch current metrics
+        current_stats = self._get_current_stats()
+        
+        # Create visualizations
+        plots = {
+            'lateness_trend': self._plot_lateness_trend(),
+            'utilization_heatmap': self._plot_utilization_heatmap(),
+            'rl_vs_greedy': self._plot_comparison(),
+            'alerts': self._get_alerts()
+        }
+        
+        return render_template('dashboard.html', 
+                             stats=current_stats, 
+                             plots=plots)
+                             
+    def _get_current_stats(self):
+        """Fetch real-time statistics"""
+        conn = mysql.connector.connect(**self.db_config)
+        cursor = conn.cursor(dictionary=True)
+        
+        # Current performance
+        cursor.execute("""
+            SELECT 
+                AVG(DATEDIFF(completion_date, lcd_date)) as avg_lateness,
+                COUNT(CASE WHEN completion_date > lcd_date THEN 1 END) / COUNT(*) as late_ratio,
+                AVG(machine_utilization) as avg_utilization
+            FROM scheduled_jobs
+            WHERE scheduled_date >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+        """)
+        
+        return cursor.fetchone()
+        
+    def _get_alerts(self):
+        """Check for issues requiring attention"""
+        alerts = []
+        
+        # Check fallback rate
+        if self.metrics['fallback_rate'][-1] > 0.1:
+            alerts.append({
+                'level': 'warning',
+                'message': 'High fallback rate detected',
+                'value': f"{self.metrics['fallback_rate'][-1]:.1%}"
+            })
+            
+        # Check constraint violations
+        if self.metrics['constraint_violations'][-1] > 0:
+            alerts.append({
+                'level': 'error',
+                'message': 'Constraint violations detected',
+                'value': self.metrics['constraint_violations'][-1]
+            })
+            
+        return alerts
+```
+
+### Week 16: Full Production Rollout
+
+#### Final Deployment Checklist
+- [ ] All tests passing (>99% constraint satisfaction)
+- [ ] Performance metrics better than greedy
+- [ ] Inference time < 10 seconds for 500 jobs
+- [ ] Monitoring dashboard operational
+- [ ] Rollback procedure tested
+- [ ] Team trained on new system
+- [ ] Documentation complete
+
+## Risk Management
+├── Check alert dashboard
+├── Address any fallbacks
+└── Plan day's scheduling
+
+Hourly:
+├── Monitor real-time metrics
+├── Check constraint satisfaction
+├── Review RL vs greedy performance
+└── Log any anomalies
+
+End of Day (5:00 PM):
+├── Daily performance report
+├── Update success metrics
+├── Plan next day's improvements
+└── Backup model checkpoints
+```
+
+### Model Update Workflow
+```
+Weekly:
+1. Collect week's data
+2. Analyze failure cases
+3. Retrain if needed
+4. Test on validation set
+5. A/B test if improved
+6. Deploy if successful
+```
+
+### Incident Response Workflow
+```
+If constraint violation detected:
+1. Immediate fallback to greedy
+2. Log full context
+3. Alert operations team
+4. Investigate root cause
+5. Update validation rules
+6. Retrain if systematic issue
+```
+
+### Technical Risks
+| Risk | Probability | Impact | Mitigation |
+|------|------------|--------|------------|
+| Model fails to converge | Medium | High | Multiple algorithms, hyperparameter search |
+| Constraint violations | Low | Critical | Hard validation layer, fallback system |
+| Performance degradation | Medium | Medium | Continuous monitoring, quick rollback |
+| Inference too slow | Low | High | Model optimization, caching strategies |
+
+### Operational Risks
+| Risk | Probability | Impact | Mitigation |
+|------|------------|--------|------------|
+| Team resistance | Medium | Medium | Training, gradual rollout, show benefits |
+| Data quality issues | Medium | High | Data validation, cleaning pipelines |
+| System integration | Low | Medium | API compatibility, testing |
+
+## Success Metrics
+
+### Phase Milestones
+1. **Toy Problem (Week 4)** ✅
+   - [x] PPO converges reliably
+   - [x] Beats random baseline by 20-33%
+   - [x] Training time < 1 hour
+
+2. **Realistic Scale (Week 8)** ✅
+   - [x] Handles 172 jobs, 40 machines
+   - [x] Respects all constraints
+   - [x] Achieved 19.7h makespan
+
+3. **Full Environment (Week 12)** 🟡
+   - [x] Processes 500+ jobs target
+   - [x] 152 machines integrated
+   - [ ] Training completion pending
+
+4. **Production Ready (Week 16)** 📅
+   - [ ] 99.9% constraint satisfaction
+   - [ ] Safety wrapper implemented
+   - [ ] Production deployment ready
+
+### KPI Targets
+| Metric | Current (Greedy) | Target (RL) | Stretch Goal |
+|--------|------------------|-------------|--------------|
+| Avg Days Late | 25.9 | 20.0 | 15.0 |
+| Schedule Time | 4.09s | <10s | <5s |
+| Machine Utilization Std | High | -20% | -40% |
+| On-time Delivery | ~60% | 75% | 85% |
+| Overtime Hours | Baseline | -10% | -20% |
+
+## Key Lessons Learned
+
+1. **Curriculum Learning Works**: Scaling from 2 → 10 → 40 → 152 machines proved effective
+2. **State Compression Critical**: Reduced 505 features to 60 without losing performance
+3. **Boolean > Priority Levels**: Simplified importance system performed equally well
+4. **Database Integration**: Real production data integration requires careful NaN handling
+5. **Transfer Learning**: Important for preserving learned behaviors across phases
+
+## Next Steps
+
+1. **Complete Phase 4 Training**: Monitor remaining 600k steps
+2. **Validate Performance**: Ensure <25h makespan for 500 jobs
+3. **Implement Safety Wrapper**: Add constraint validation and fallback
+4. **Deploy Shadow Mode**: Run parallel to production for validation
+5. **Gradual Production Rollout**: 10% → 50% → 100% traffic
+
+---
+*Project actively maintained. See z_MEMORY.md for detailed implementation history.*
