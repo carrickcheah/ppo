@@ -169,10 +169,9 @@ class ProductionDataIngester:
                     MachineId_i as machine_id,
                     MachineName_v as machine_name,
                     MachinetypeId_i as machine_type_id,
-                    Status_c as status,
-                    Efficiency_d as efficiency_rate
+                    Status_i as status
                 FROM tbl_machine
-                WHERE Status_c = 'A'  -- Active machines only
+                WHERE Status_i = 1  -- Active machines (assuming 1 = active)
                 ORDER BY MachineId_i
                 """
                 
@@ -185,7 +184,7 @@ class ProductionDataIngester:
                         'machine_name': row['machine_name'],
                         'machine_type_id': row['machine_type_id'],
                         'status': row['status'],
-                        'efficiency_rate': float(row['efficiency_rate']) if row['efficiency_rate'] else 1.0
+                        'efficiency_rate': 1.0  # Default efficiency rate since column doesn't exist
                     }
                 
                 logger.info(f"Fetched {len(machines)} active machines")
@@ -214,7 +213,7 @@ class ProductionDataIngester:
                 FROM tbl_machine tm
                 INNER JOIN tbl_jo_process jop 
                     ON tm.MachineId_i = CAST(jop.Machine_v AS UNSIGNED)
-                WHERE tm.Status_c = 'A'
+                WHERE tm.Status_i = 1
                     AND jop.Task_v IS NOT NULL
                     AND jop.Task_v != ''
                 """
@@ -436,7 +435,7 @@ class ProductionDataIngester:
                     'machine_id': m_id,
                     'machine_name': m_info['machine_name'],
                     'machine_type_id': m_info['machine_type_id'],
-                    'is_active': 1 if m_info['status'] == 'A' else 0
+                    'is_active': 1 if m_info['status'] == 1 else 0
                 })
             snapshot['machines'] = machine_list
         

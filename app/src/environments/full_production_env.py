@@ -74,7 +74,7 @@ class FullProductionEnv(ScaledProductionEnv):
         
         # Ensure we have jobs loaded
         if not hasattr(self, 'jobs') or not self.jobs:
-            logger.warning("No jobs loaded from parent class, generating production data")
+            logger.info("Loading real production data...")
             self._load_data()
             # Initialize job structures if parent didn't
             if not hasattr(self, 'jobs'):
@@ -100,26 +100,41 @@ class FullProductionEnv(ScaledProductionEnv):
             else:
                 logger.warning(f"Skipping machine {machine.get('machine_id', 'unknown')} with invalid type")
                 
-        # If we don't have enough, fill with synthetic machines
-        while len(selected) < n_machines:
-            machine_id = len(selected) + 1
-            selected.append({
-                'machine_id': machine_id,
-                'machine_name': f'M{machine_id:03d}',
-                'machine_type_id': (machine_id % 10) + 1  # Distribute across types 1-10
-            })
+        # FORBIDDEN: No synthetic machines allowed
+        if len(selected) < n_machines:
+            logger.error(f"Only {len(selected)} real machines available, requested {n_machines}")
+            logger.error("Cannot create synthetic machines - use real data only!")
+            # Use what we have from real data
+            n_machines = len(selected)
+            logger.warning(f"Adjusting to use {n_machines} real machines")
             
         return selected[:n_machines]
         
     def _load_data(self):
-        """Override to load larger dataset for full production scale."""
-        if self.data_file is None:
-            self.data_file = Path(__file__).parent.parent.parent / "data" / "full_production_data.json"
+        """Override to load REAL production data ONLY."""
+        # MANDATORY: Use real production snapshot per CLAUDE.md requirements
+        real_data_path = Path(__file__).parent.parent.parent / "data" / "real_production_snapshot.json"
+        
+        # Check for real data marker
+        marker_path = Path(__file__).parent.parent.parent / "data" / ".use_real_data_only"
+        if not marker_path.exists():
+            raise RuntimeError(
+                "REAL DATA NOT CONFIGURED! Per CLAUDE.md requirements:\n"
+                "1. Run: cd /Users/carrickcheah/Project/ppo/app\n"
+                "2. Run: uv run python load_real_production_data.py\n"
+                "3. This will fetch REAL production data from database\n"
+                "SYNTHETIC DATA IS STRICTLY FORBIDDEN!"
+            )
             
-        # Check if full production data exists, otherwise generate it
-        if not self.data_file.exists():
-            logger.info(f"Full production data not found, generating {self.n_jobs} jobs...")
-            self._generate_full_production_data()
+        if not real_data_path.exists():
+            raise FileNotFoundError(
+                f"REAL production data not found at {real_data_path}\n"
+                "Run load_real_production_data.py to fetch from database\n"
+                "GENERATING SYNTHETIC DATA IS FORBIDDEN!"
+            )
+        
+        self.data_file = real_data_path
+        logger.info("Loading REAL production data (synthetic data forbidden)...")
             
         # Load the data
         with open(self.data_file, 'r') as f:
@@ -133,9 +148,12 @@ class FullProductionEnv(ScaledProductionEnv):
         logger.info(f"Loaded {len(self.data['families'])} families with {total_jobs} total jobs")
         
     def _generate_full_production_data(self):
-        """Generate realistic production data at scale."""
-        import random
-        from datetime import datetime, timedelta
+        """FORBIDDEN: Synthetic data generation is strictly prohibited."""
+        raise RuntimeError(
+            "SYNTHETIC DATA GENERATION IS FORBIDDEN!\n"
+            "Per CLAUDE.md requirements, ONLY real production data is allowed.\n"
+            "Run load_real_production_data.py to fetch real data from database."
+        )
         
         # Set seed for reproducibility
         if self._seed is not None:

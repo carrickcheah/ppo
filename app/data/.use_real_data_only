@@ -1,0 +1,4 @@
+REAL DATA MODE ENFORCED
+Snapshot: data/real_production_snapshot.json
+Created: 2025-07-19T23:06:04.913988
+Any attempt to use synthetic data will raise an error
