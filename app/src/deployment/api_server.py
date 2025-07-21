@@ -21,8 +21,9 @@ import numpy as np
 from .settings import get_settings, APISettings
 from .models import (
     ScheduleRequest, ScheduleResponse, ScheduledJob,
-    HealthResponse, ErrorResponse, ScheduleMetrics
+    HealthResponse, ErrorResponse, ScheduleMetrics, Machine
 )
+from .scheduler import PPOScheduler, MockScheduler
 
 # Initialize logger
 logging.basicConfig(level=logging.INFO)
@@ -30,6 +31,8 @@ logger = logging.getLogger(__name__)
 
 # Global variables for model and app state
 ppo_model = None
+ppo_scheduler = None
+mock_scheduler = None
 app_start_time = None
 last_schedule_time = None
 db_connection = None
@@ -40,7 +43,7 @@ async def lifespan(app: FastAPI):
     """
     Manage application lifecycle - load model at startup, cleanup at shutdown.
     """
-    global ppo_model, app_start_time
+    global ppo_model, ppo_scheduler, mock_scheduler, app_start_time
     
     settings = get_settings()
     logger.info(f"Starting PPO Scheduler API in {settings.environment} mode")
@@ -51,6 +54,17 @@ async def lifespan(app: FastAPI):
         ppo_model = sb3.PPO.load(settings.model_path)
         logger.info("PPO model loaded successfully")
         
+        # Initialize schedulers
+        try:
+            ppo_scheduler = PPOScheduler(ppo_model)
+            logger.info("PPO scheduler initialized successfully")
+        except ImportError as e:
+            logger.warning(f"Could not initialize PPO scheduler: {e}")
+            ppo_scheduler = None
+            
+        mock_scheduler = MockScheduler()
+        logger.info("Mock scheduler initialized")
+        
         # Initialize database connection
         # TODO: Implement database connection
         
@@ -60,6 +74,10 @@ async def lifespan(app: FastAPI):
         
     except Exception as e:
         logger.error(f"Failed to initialize application: {str(e)}")
+        # If PPO fails to load, use mock scheduler
+        if not ppo_scheduler:
+            logger.warning("PPO model failed to load, using mock scheduler only")
+            mock_scheduler = MockScheduler()
         raise
     finally:
         # Cleanup on shutdown
@@ -172,54 +190,65 @@ async def create_schedule(
     logger.info(f"Creating schedule {schedule_id} with {len(request.jobs)} jobs")
     
     try:
-        # Validate model is loaded
-        if not ppo_model:
+        # Choose scheduler based on availability and settings
+        use_ppo = ppo_scheduler is not None and settings.environment != "test"
+        scheduler = ppo_scheduler if use_ppo else mock_scheduler
+        
+        if not scheduler:
             raise HTTPException(
                 status_code=503,
-                detail="Model not loaded - service unavailable"
+                detail="No scheduler available - service unavailable"
             )
         
-        # TODO: Implement actual scheduling logic
-        # For now, create a mock response
+        # Get machines from request or use default
+        if request.machines:
+            machines = request.machines
+        else:
+            # TODO: Load machines from database
+            # For now, create mock machines
+            machines = [
+                Machine(
+                    machine_id=i,
+                    machine_name=f"M{i:03d}",
+                    machine_type=(i % 10) + 1,
+                    current_load=0.0
+                )
+                for i in range(1, 153)  # 152 machines
+            ]
         
-        # Mock scheduled jobs
-        scheduled_jobs = []
-        current_time = 0.0
+        # Use the scheduler to generate schedule
+        scheduled_jobs, metrics_dict = scheduler.schedule(
+            jobs=request.jobs,
+            machines=machines,
+            schedule_start=request.schedule_start
+        )
         
-        for job in request.jobs[:5]:  # Mock scheduling first 5 jobs
-            scheduled_job = ScheduledJob(
-                job_id=job.job_id,
-                machine_id=1,  # Mock machine assignment
-                machine_name="CM03",  # Mock machine name
-                start_time=current_time,
-                end_time=current_time + job.processing_time,
-                start_datetime=request.schedule_start,
-                end_datetime=request.schedule_start
-            )
-            scheduled_jobs.append(scheduled_job)
-            current_time += job.processing_time + 0.5  # Add setup time
-        
-        # Calculate metrics
-        makespan = current_time if scheduled_jobs else 0.0
-        scheduled_count = len(scheduled_jobs)
-        total_count = len(request.jobs)
-        completion_rate = (scheduled_count / total_count * 100) if total_count > 0 else 0.0
-        
+        # Create metrics object
         metrics = ScheduleMetrics(
-            makespan=makespan,
-            total_jobs=total_count,
-            scheduled_jobs=scheduled_count,
-            completion_rate=completion_rate,
-            average_utilization=75.5,  # Mock value
-            total_setup_time=0.5 * scheduled_count,  # Mock value
-            important_jobs_on_time=95.0  # Mock value
+            makespan=metrics_dict['makespan'],
+            total_jobs=metrics_dict['total_jobs'],
+            scheduled_jobs=metrics_dict['scheduled_jobs'],
+            completion_rate=metrics_dict['completion_rate'],
+            average_utilization=metrics_dict['average_utilization'],
+            total_setup_time=metrics_dict['total_setup_time'],
+            important_jobs_on_time=metrics_dict['important_jobs_on_time']
         )
         
         # Record successful schedule time
         last_schedule_time = datetime.now()
         generation_time = time.time() - start_time
         
-        logger.info(f"Schedule {schedule_id} created successfully in {generation_time:.3f}s")
+        logger.info(f"Schedule {schedule_id} created successfully in {generation_time:.3f}s "
+                   f"using {'PPO' if use_ppo else 'mock'} scheduler")
+        
+        # Prepare warnings
+        warnings = []
+        if not use_ppo:
+            warnings.append("Using mock scheduler - PPO model not available")
+        if not request.machines:
+            warnings.append("Using default machine configuration - no machines provided")
+        if metrics.completion_rate < 100:
+            warnings.append(f"Only {metrics.scheduled_jobs}/{metrics.total_jobs} jobs could be scheduled")
         
         return ScheduleResponse(
             schedule_id=schedule_id,
@@ -227,8 +256,8 @@ async def create_schedule(
             scheduled_jobs=scheduled_jobs,
             metrics=metrics,
             generation_time=generation_time,
-            algorithm_used="ppo_full_production",
-            warnings=["This is a mock implementation - actual PPO scheduling not yet connected"]
+            algorithm_used="ppo_full_production" if use_ppo else "mock_first_fit",
+            warnings=warnings if warnings else None
         )
         
     except Exception as e:
@@ -249,7 +278,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         content=ErrorResponse(
             error=f"HTTP_{exc.status_code}",
             message=exc.detail,
-            timestamp=datetime.now()
+            timestamp=datetime.now().isoformat()
         ).dict()
     )
 
@@ -272,7 +301,7 @@ async def general_exception_handler(request: Request, exc: Exception):
         content=ErrorResponse(
             error="INTERNAL_ERROR",
             message=message,
-            timestamp=datetime.now()
+            timestamp=datetime.now().isoformat()
         ).dict()
     )
 

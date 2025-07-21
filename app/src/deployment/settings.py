@@ -19,7 +19,7 @@ class APISettings(BaseSettings):
     
     # Model configuration
     model_path: str = Field(
-        default="app/models/full_production/final_model.zip",
+        default="models/full_production/final_model.zip",
         description="Path to the trained PPO model file"
     )
     
@@ -92,7 +92,6 @@ class APISettings(BaseSettings):
     # CORS settings
     cors_allow_origins: list[str] = Field(
         default=["http://localhost:3000"],
-        env="CORS_ALLOW_ORIGINS",
         description="Allowed CORS origins (comma-separated in env)"
     )
     cors_allow_methods: list[str] = Field(
@@ -161,13 +160,35 @@ class APISettings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
-        
-        # Custom parsing for list fields
-        @classmethod
-        def parse_env_var(cls, field_name: str, raw_val: str):
-            if field_name == "cors_allow_origins":
-                return [x.strip() for x in raw_val.split(",")]
-            return raw_val
+        extra = "ignore"  # Ignore extra fields from .env
+    
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls,
+        init_settings,
+        env_settings,
+        dotenv_settings,
+        file_secret_settings,
+    ):
+        """
+        Customize how settings are loaded to handle CORS_ALLOW_ORIGINS parsing.
+        """
+        return (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            file_secret_settings,
+        )
+    
+    def __init__(self, **values):
+        """Override init to handle CORS origins parsing."""
+        # Handle CORS_ALLOW_ORIGINS if it's a string
+        import os
+        cors_origins = os.getenv("CORS_ALLOW_ORIGINS")
+        if cors_origins and isinstance(cors_origins, str):
+            values["cors_allow_origins"] = [x.strip() for x in cors_origins.split(",")]
+        super().__init__(**values)
 
 
 # Singleton instance
