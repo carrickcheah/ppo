@@ -155,8 +155,13 @@ class ScheduleRequest(BaseModel):
         default=None,
         description="Optional request ID for tracking"
     )
+    save_to_database: bool = Field(
+        default=False,
+        description="Whether to save the generated schedule to database"
+    )
     
     class Config:
+        extra = "ignore"
         schema_extra = {
             "example": {
                 "jobs": [
@@ -171,7 +176,8 @@ class ScheduleRequest(BaseModel):
                     }
                 ],
                 "schedule_start": "2025-07-21T06:30:00",
-                "respect_break_times": True
+                "respect_break_times": True,
+                "save_to_database": True
             }
         }
 

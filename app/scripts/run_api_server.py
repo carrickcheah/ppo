@@ -10,7 +10,7 @@ import sys
 import os
 
 # Add the app directory to Python path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import uvicorn
 from src.deployment.settings import get_settings

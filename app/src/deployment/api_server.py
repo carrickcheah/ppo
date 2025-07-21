@@ -23,7 +23,8 @@ from .models import (
     ScheduleRequest, ScheduleResponse, ScheduledJob,
     HealthResponse, ErrorResponse, ScheduleMetrics, Machine
 )
-from .scheduler import PPOScheduler, MockScheduler
+from .scheduler import PPOScheduler
+from .database import get_database
 
 # Initialize logger
 logging.basicConfig(level=logging.INFO)
@@ -32,7 +33,6 @@ logger = logging.getLogger(__name__)
 # Global variables for model and app state
 ppo_model = None
 ppo_scheduler = None
-mock_scheduler = None
 app_start_time = None
 last_schedule_time = None
 db_connection = None
@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI):
     """
     Manage application lifecycle - load model at startup, cleanup at shutdown.
     """
-    global ppo_model, ppo_scheduler, mock_scheduler, app_start_time
+    global ppo_model, ppo_scheduler, app_start_time
     
     settings = get_settings()
     logger.info(f"Starting PPO Scheduler API in {settings.environment} mode")
@@ -54,19 +54,16 @@ async def lifespan(app: FastAPI):
         ppo_model = sb3.PPO.load(settings.model_path)
         logger.info("PPO model loaded successfully")
         
-        # Initialize schedulers
-        try:
-            ppo_scheduler = PPOScheduler(ppo_model)
-            logger.info("PPO scheduler initialized successfully")
-        except ImportError as e:
-            logger.warning(f"Could not initialize PPO scheduler: {e}")
-            ppo_scheduler = None
-            
-        mock_scheduler = MockScheduler()
-        logger.info("Mock scheduler initialized")
+        # Initialize PPO scheduler - no fallback
+        ppo_scheduler = PPOScheduler(ppo_model)
+        logger.info("PPO scheduler initialized successfully")
         
         # Initialize database connection
-        # TODO: Implement database connection
+        db_connection = get_database()
+        if not db_connection.test_connection():
+            logger.error("Failed to connect to database")
+            raise RuntimeError("Database connection failed")
+        logger.info("Database connection established")
         
         app_start_time = time.time()
         
@@ -74,17 +71,11 @@ async def lifespan(app: FastAPI):
         
     except Exception as e:
         logger.error(f"Failed to initialize application: {str(e)}")
-        # If PPO fails to load, use mock scheduler
-        if not ppo_scheduler:
-            logger.warning("PPO model failed to load, using mock scheduler only")
-            mock_scheduler = MockScheduler()
         raise
     finally:
         # Cleanup on shutdown
         logger.info("Shutting down PPO Scheduler API")
-        if db_connection:
-            # TODO: Close database connection
-            pass
+        # Database connections are handled by context manager
 
 
 # Create FastAPI application
@@ -145,8 +136,7 @@ async def health_check():
     # Check database connection
     db_connected = False
     try:
-        # TODO: Implement actual database health check
-        db_connected = True
+        db_connected = db_connection.test_connection() if db_connection else False
     except Exception as e:
         logger.error(f"Database health check failed: {str(e)}")
     
@@ -190,34 +180,30 @@ async def create_schedule(
     logger.info(f"Creating schedule {schedule_id} with {len(request.jobs)} jobs")
     
     try:
-        # Choose scheduler based on availability and settings
-        use_ppo = ppo_scheduler is not None and settings.environment != "test"
-        scheduler = ppo_scheduler if use_ppo else mock_scheduler
-        
-        if not scheduler:
+        # Use PPO scheduler only - no fallback
+        if not ppo_scheduler:
             raise HTTPException(
                 status_code=503,
-                detail="No scheduler available - service unavailable"
+                detail="PPO scheduler not initialized - service unavailable"
             )
         
-        # Get machines from request or use default
+        # Get machines from request or load from database
         if request.machines:
             machines = request.machines
         else:
-            # TODO: Load machines from database
-            # For now, create mock machines
-            machines = [
-                Machine(
-                    machine_id=i,
-                    machine_name=f"M{i:03d}",
-                    machine_type=(i % 10) + 1,
-                    current_load=0.0
+            # Load real machines from database
+            try:
+                machines = db_connection.get_machines()
+                logger.info(f"Loaded {len(machines)} machines from database")
+            except Exception as e:
+                logger.error(f"Failed to load machines from database: {str(e)}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to load machines: {str(e)}"
                 )
-                for i in range(1, 153)  # 152 machines
-            ]
         
-        # Use the scheduler to generate schedule
-        scheduled_jobs, metrics_dict = scheduler.schedule(
+        # Use PPO scheduler to generate schedule
+        scheduled_jobs, metrics_dict = ppo_scheduler.schedule(
             jobs=request.jobs,
             machines=machines,
             schedule_start=request.schedule_start
@@ -238,15 +224,27 @@ async def create_schedule(
         last_schedule_time = datetime.now()
         generation_time = time.time() - start_time
         
-        logger.info(f"Schedule {schedule_id} created successfully in {generation_time:.3f}s "
-                   f"using {'PPO' if use_ppo else 'mock'} scheduler")
+        logger.info(f"Schedule {schedule_id} created successfully in {generation_time:.3f}s using PPO scheduler")
+        
+        # Save schedule to database if requested
+        if request.save_to_database:
+            try:
+                success = db_connection.save_schedule(
+                    schedule_id=schedule_id,
+                    scheduled_jobs=[job.dict() for job in scheduled_jobs],
+                    metrics=metrics_dict
+                )
+                if success:
+                    logger.info(f"Schedule {schedule_id} saved to database")
+                else:
+                    logger.warning(f"Failed to save schedule {schedule_id} to database")
+            except Exception as e:
+                logger.error(f"Database save error: {str(e)}")
         
         # Prepare warnings
         warnings = []
-        if not use_ppo:
-            warnings.append("Using mock scheduler - PPO model not available")
         if not request.machines:
-            warnings.append("Using default machine configuration - no machines provided")
+            warnings.append("Using real machines from database")
         if metrics.completion_rate < 100:
             warnings.append(f"Only {metrics.scheduled_jobs}/{metrics.total_jobs} jobs could be scheduled")
         
@@ -256,7 +254,7 @@ async def create_schedule(
             scheduled_jobs=scheduled_jobs,
             metrics=metrics,
             generation_time=generation_time,
-            algorithm_used="ppo_full_production" if use_ppo else "mock_first_fit",
+            algorithm_used="ppo_full_production",
             warnings=warnings if warnings else None
         )
         
