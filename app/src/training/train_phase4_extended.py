@@ -36,8 +36,7 @@ from stable_baselines3.common.env_util import make_vec_env
 # Add parent directory to path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from environments.full_production_env import FullProductionEnv
-from data_ingestion.ingest_data import load_production_snapshot
+from ..environments.full_production_env import FullProductionEnv
 
 # Configure logging
 logging.basicConfig(
@@ -118,12 +117,18 @@ class LearningRateSchedule:
         return self.final_lr + (self.initial_lr - self.final_lr) * (1 - progress)
 
 
+def load_production_snapshot(file_path: str) -> Dict[str, Any]:
+    """Load production snapshot from JSON file."""
+    with open(file_path, 'r') as f:
+        return json.load(f)
+
+
 def load_extended_config() -> Dict[str, Any]:
     """
     Load and update configuration for extended training.
     """
     # Load base config
-    with open('configs/phase4_config.yaml', 'r') as f:
+    with open('configs/phase4_extended_config.yaml', 'r') as f:
         config = yaml.safe_load(f)
     
     # Update for extended training
@@ -139,9 +144,9 @@ def load_extended_config() -> Dict[str, Any]:
     # More frequent checkpoints
     config['logging']['save_freq'] = 250000  # Every 250k steps
     
-    # Resume from best model
-    config['training']['resume_from_checkpoint'] = True
-    config['training']['checkpoint_path'] = "models/full_production/final_model.zip"
+    # Resume from best model - already set in config
+    # config['training']['resume_from_checkpoint'] = True
+    # config['training']['checkpoint_path'] = "models/full_production/final_model.zip"
     
     return config
 
@@ -151,13 +156,52 @@ def create_env_fn(env_id: int, config: Dict[str, Any], snapshot_data: Dict[str, 
     Create environment function for vectorized environments.
     """
     def _init():
+        # Convert snapshot format to environment format
+        jobs = []
+        machines = []
+        
+        # Extract jobs from families
+        for family_id, family_data in snapshot_data.get('families', {}).items():
+            for task in family_data.get('tasks', []):
+                # Get machine types from capable_machines
+                machine_types = []
+                for machine in task.get('capable_machines', []):
+                    if isinstance(machine, dict) and 'machine_type' in machine:
+                        machine_types.append(machine['machine_type'])
+                
+                if not machine_types:
+                    machine_types = [1]  # Default machine type
+                
+                job = {
+                    'id': f"{family_id}-{task['sequence']}",
+                    'family_id': family_id,
+                    'sequence': task['sequence'],
+                    'processing_time': task.get('processing_time', 2.0),
+                    'machine_types': machine_types,
+                    'is_important': family_data.get('is_important', False),
+                    'lcd_date': family_data.get('lcd_date'),
+                    'setup_time': 0.3  # Default setup time
+                }
+                jobs.append(job)
+        
+        # Extract machines
+        for machine_data in snapshot_data.get('machines', []):
+            machine = {
+                'id': machine_data['machine_id'],
+                'name': machine_data['machine_name'],
+                'type': machine_data['machine_type_id'],
+                'initial_load': 0.0
+            }
+            machines.append(machine)
+        
         env_config = {
-            'n_machines': config['environment']['n_machines'],
+            'n_machines': len(machines) or config['environment']['n_machines'],
+            'n_jobs': len(jobs),
             'use_break_constraints': config['environment']['use_break_constraints'],
             'use_holiday_constraints': config['environment']['use_holiday_constraints'],
             'state_compression': config['environment']['state_compression'],
             'seed': config['environment']['seed'] + env_id,
-            'production_data': snapshot_data
+            'snapshot_file': config['environment']['snapshot_path']
         }
         
         env = FullProductionEnv(**env_config)
@@ -186,8 +230,10 @@ def main():
     # Load production data
     logger.info("Loading real production data...")
     snapshot_data = load_production_snapshot(config['environment']['snapshot_path'])
-    logger.info(f"Loaded {len(snapshot_data['machines'])} machines, "
-                f"{len(snapshot_data['jobs'])} jobs from snapshot")
+    # Extract job count from families
+    total_jobs = sum(len(family.get('tasks', [])) for family in snapshot_data.get('families', {}).values())
+    logger.info(f"Loaded {snapshot_data['metadata']['total_machines']} machines, "
+                f"{total_jobs} jobs from snapshot")
     
     # Create vectorized environments
     logger.info(f"Creating {config['training']['n_envs']} parallel environments...")

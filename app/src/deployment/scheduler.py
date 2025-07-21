@@ -45,10 +45,13 @@ class PPOScheduler:
         self.model = ppo_model
         self.env_config = env_config or {
             'n_machines': 152,
+            'max_valid_actions': 200,  # Environment limitation
+            'max_episode_steps': 2000,
             'use_break_constraints': True,
             'use_holiday_constraints': True,
             'state_compression': 'hierarchical'
         }
+        self.batch_size = 170  # Maximum jobs per batch due to environment limitation
         self.break_constraints = BreakTimeConstraints() if BreakTimeConstraints else None
         
     def create_environment(self, jobs: List[Job], machines: List[Machine], 
@@ -105,6 +108,7 @@ class PPOScheduler:
                 schedule_start: datetime) -> Tuple[List[ScheduledJob], Dict[str, Any]]:
         """
         Generate a schedule using the PPO model.
+        Handles batch scheduling due to environment limitations.
         
         Args:
             jobs: List of jobs to schedule
@@ -115,6 +119,18 @@ class PPOScheduler:
             Tuple of (scheduled_jobs, metrics)
         """
         logger.info(f"Starting PPO scheduling for {len(jobs)} jobs on {len(machines)} machines")
+        
+        # Check if we need batch processing
+        if len(jobs) > self.batch_size:
+            logger.info(f"Jobs exceed batch size ({self.batch_size}), using batch scheduling")
+            return self._schedule_in_batches(jobs, machines, schedule_start)
+        
+        # Single batch scheduling
+        return self._schedule_single_batch(jobs, machines, schedule_start)
+    
+    def _schedule_single_batch(self, jobs: List[Job], machines: List[Machine],
+                               schedule_start: datetime) -> Tuple[List[ScheduledJob], Dict[str, Any]]:
+        """Schedule a single batch of jobs."""
         
         # Create environment
         env = self.create_environment(jobs, machines, schedule_start)
@@ -210,6 +226,83 @@ class PPOScheduler:
             return 100.0
         
         return (important_on_time / important_total) * 100
+    
+    def _schedule_in_batches(self, jobs: List[Job], machines: List[Machine],
+                            schedule_start: datetime) -> Tuple[List[ScheduledJob], Dict[str, Any]]:
+        """
+        Schedule jobs in multiple batches to handle environment limitations.
+        """
+        # Sort jobs by priority and LCD date
+        sorted_jobs = sorted(jobs, key=lambda j: (j.priority, j.lcd_date))
+        
+        # Create batches
+        batches = []
+        for i in range(0, len(sorted_jobs), self.batch_size):
+            batch = sorted_jobs[i:i + self.batch_size]
+            batches.append(batch)
+        
+        logger.info(f"Created {len(batches)} batches for scheduling")
+        
+        # Schedule each batch
+        all_scheduled_jobs = []
+        cumulative_makespan = 0.0
+        machine_loads = {m.machine_id: 0.0 for m in machines}
+        
+        for i, batch in enumerate(batches):
+            logger.info(f"Processing batch {i+1}/{len(batches)} with {len(batch)} jobs")
+            
+            # Update machine initial loads for subsequent batches
+            if i > 0:
+                for machine in machines:
+                    machine.current_load = machine_loads.get(machine.machine_id, 0.0)
+            
+            # Schedule this batch
+            batch_scheduled, batch_metrics = self._schedule_single_batch(
+                batch, machines, schedule_start
+            )
+            
+            # Adjust times based on cumulative makespan
+            for job in batch_scheduled:
+                job.start_time += cumulative_makespan
+                job.end_time += cumulative_makespan
+                job.start_datetime = schedule_start + timedelta(hours=job.start_time)
+                job.end_datetime = schedule_start + timedelta(hours=job.end_time)
+                
+                # Update machine loads
+                machine_loads[job.machine_id] = max(
+                    machine_loads.get(job.machine_id, 0.0),
+                    job.end_time
+                )
+            
+            all_scheduled_jobs.extend(batch_scheduled)
+            cumulative_makespan = max(machine_loads.values()) if machine_loads else 0.0
+        
+        # Calculate final metrics
+        final_metrics = {
+            'makespan': cumulative_makespan,
+            'total_jobs': len(jobs),
+            'scheduled_jobs': len(all_scheduled_jobs),
+            'completion_rate': (len(all_scheduled_jobs) / len(jobs) * 100) if jobs else 0.0,
+            'average_utilization': self._calculate_utilization(all_scheduled_jobs, machines, cumulative_makespan),
+            'total_setup_time': sum(job.setup_time_included for job in all_scheduled_jobs),
+            'important_jobs_on_time': self._calculate_on_time_rate(all_scheduled_jobs, jobs),
+            'batches_used': len(batches)
+        }
+        
+        logger.info(f"Batch scheduling complete: {len(all_scheduled_jobs)}/{len(jobs)} jobs scheduled")
+        
+        return all_scheduled_jobs, final_metrics
+    
+    def _calculate_utilization(self, scheduled_jobs: List[ScheduledJob], 
+                              machines: List[Machine], makespan: float) -> float:
+        """Calculate average machine utilization."""
+        if not makespan or not machines:
+            return 0.0
+            
+        total_work_time = sum(job.end_time - job.start_time for job in scheduled_jobs)
+        total_available_time = len(machines) * makespan
+        
+        return (total_work_time / total_available_time * 100) if total_available_time > 0 else 0.0
 
 
 class MockScheduler:

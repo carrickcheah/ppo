@@ -141,11 +141,19 @@ class FullProductionEnv(ScaledProductionEnv):
             self.data = json.load(f)
             
         # Ensure we have enough jobs
-        total_jobs = sum(len(family['jobs']) for family in self.data['families'])
+        if isinstance(self.data['families'], dict):
+            # Handle real production snapshot format
+            total_jobs = sum(len(family.get('tasks', [])) for family in self.data['families'].values())
+            num_families = len(self.data['families'])
+        else:
+            # Handle list format
+            total_jobs = sum(len(family['jobs']) for family in self.data['families'])
+            num_families = len(self.data['families'])
+            
         if total_jobs < self.n_jobs:
             logger.warning(f"Only {total_jobs} jobs in data, less than target {self.n_jobs}")
             
-        logger.info(f"Loaded {len(self.data['families'])} families with {total_jobs} total jobs")
+        logger.info(f"Loaded {num_families} families with {total_jobs} total jobs")
         
     def _generate_full_production_data(self):
         """FORBIDDEN: Synthetic data generation is strictly prohibited."""
@@ -276,34 +284,93 @@ class FullProductionEnv(ScaledProductionEnv):
         self.families = []
         
         job_id = 0
-        for family_data in self.data.get('families', []):
-            family = {
-                'family_id': family_data['family_id'],
-                'family_name': family_data['family_name'],
-                'priority': family_data.get('priority', 3),
-                'total_jobs': family_data['total_jobs'],
-                'jobs': []
-            }
-            
-            for job_data in family_data.get('jobs', []):
-                job = {
-                    'job_id': job_id,
-                    'family_id': family_data['family_id'],
-                    'workorder': job_data.get('WorkorderLotId_v', f"WO{job_id}"),
-                    'spec': job_data.get('Spec_v', ''),
-                    'sequence': job_data.get('Seq_i', 1),
-                    'processing_time': job_data.get('StandardTime_f', 1.0),
-                    'setup_time': job_data.get('SetupTime_f', 0.5),
-                    'priority': job_data.get('Priority_i', 3),
-                    'is_important': job_data.get('IsImportant_b', False),
-                    'lcd_date': datetime.strptime(job_data.get('LCDdate_d', '2025-12-31'), '%Y-%m-%d').date(),
-                    'allowed_machine_types': job_data.get('MachinetypeId_i', list(range(1, 11)))
-                }
-                self.jobs.append(job)
-                family['jobs'].append(job_id)
-                job_id += 1
+        families_data = self.data.get('families', {})
+        
+        # Handle both dict and list formats
+        if isinstance(families_data, dict):
+            # Real production snapshot format - families is a dict
+            for family_id, family_data in families_data.items():
+                # Calculate priority based on LCD days remaining
+                lcd_days = family_data.get('lcd_days_remaining', 30)
+                if lcd_days <= 7:
+                    priority = 1
+                elif lcd_days <= 14:
+                    priority = 2
+                elif lcd_days <= 21:
+                    priority = 3
+                else:
+                    priority = 4
                 
-            self.families.append(family)
+                family = {
+                    'family_id': family_id,
+                    'family_name': family_data.get('product', family_id),
+                    'priority': priority,
+                    'total_jobs': len(family_data.get('tasks', [])),
+                    'jobs': []
+                }
+                
+                # Process tasks (jobs)
+                for task in family_data.get('tasks', []):
+                    # Map machine IDs to machine types (1-10)
+                    # Use modulo to map machine IDs to types
+                    machine_types = []
+                    for machine_id in task.get('capable_machines', []):
+                        # Map machine ID to type (1-10)
+                        machine_type = (machine_id % 10) + 1
+                        if machine_type not in machine_types:
+                            machine_types.append(machine_type)
+                    
+                    if not machine_types:  # Default if no machines specified
+                        machine_types = list(range(1, 11))
+                    
+                    job = {
+                        'job_id': job_id,
+                        'family_id': family_id,
+                        'workorder': f"{family_id}-{task['sequence']}",
+                        'spec': task.get('process_name', ''),
+                        'sequence': task.get('sequence', 1),
+                        'processing_time': task.get('processing_time', 1.0),  # Already in hours
+                        'setup_time': 0.5,  # Default setup time
+                        'priority': priority,
+                        'is_important': family_data.get('is_important', False),
+                        'lcd_date': datetime.strptime(family_data.get('lcd_date', '2025-12-31'), '%Y-%m-%d').date(),
+                        'allowed_machine_types': sorted(machine_types)
+                    }
+                    self.jobs.append(job)
+                    family['jobs'].append(job_id)
+                    job_id += 1
+                    
+                self.families.append(family)
+        else:
+            # Original list format for synthetic data
+            for family_data in families_data:
+                family = {
+                    'family_id': family_data['family_id'],
+                    'family_name': family_data['family_name'],
+                    'priority': family_data.get('priority', 3),
+                    'total_jobs': family_data['total_jobs'],
+                    'jobs': []
+                }
+                
+                for job_data in family_data.get('jobs', []):
+                    job = {
+                        'job_id': job_id,
+                        'family_id': family_data['family_id'],
+                        'workorder': job_data.get('WorkorderLotId_v', f"WO{job_id}"),
+                        'spec': job_data.get('Spec_v', ''),
+                        'sequence': job_data.get('Seq_i', 1),
+                        'processing_time': job_data.get('StandardTime_f', 1.0),
+                        'setup_time': job_data.get('SetupTime_f', 0.5),
+                        'priority': job_data.get('Priority_i', 3),
+                        'is_important': job_data.get('IsImportant_b', False),
+                        'lcd_date': datetime.strptime(job_data.get('LCDdate_d', '2025-12-31'), '%Y-%m-%d').date(),
+                        'allowed_machine_types': job_data.get('MachinetypeId_i', list(range(1, 11)))
+                    }
+                    self.jobs.append(job)
+                    family['jobs'].append(job_id)
+                    job_id += 1
+                    
+                self.families.append(family)
             
         logger.info(f"Processed {len(self.families)} families with {len(self.jobs)} jobs")
         
