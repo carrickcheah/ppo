@@ -8,8 +8,10 @@ import logging
 from datetime import datetime
 from pathlib import Path
 import json
+import yaml
 import numpy as np
 from typing import Dict, Any
+import torch.nn as nn
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
@@ -47,71 +49,56 @@ class DetailedLoggingCallback(BaseCallback):
         return True
 
 
-class Phase4Config:
-    """Configuration for Phase 4 training."""
-    # Model paths
-    phase3_model_path = "app/models/curriculum/phase3_holidays/final_model.zip"
-    output_dir = "app/models/full_production"
+def load_config(config_path: str = "app/configs/phase4_config.yaml") -> Dict[str, Any]:
+    """Load configuration from YAML file."""
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
     
-    # Environment settings
-    n_machines = 152
-    n_jobs = 500
-    state_compression = "hierarchical"
-    use_break_constraints = True
-    use_holiday_constraints = True
+    # Convert activation function string to actual function
+    activation_map = {
+        "tanh": nn.Tanh,
+        "relu": nn.ReLU,
+        "gelu": nn.GELU
+    }
     
-    # Training settings
-    total_timesteps = 1_000_000
-    n_envs = 8
-    eval_freq = 10_000
-    save_freq = 50_000
+    activation_str = config['training'].get('activation_fn', 'tanh')
+    config['training']['activation_fn'] = activation_map.get(activation_str, nn.Tanh)
     
-    # PPO hyperparameters (conservative for transfer learning)
-    learning_rate = 1e-5
-    batch_size = 512
-    n_epochs = 5
-    gamma = 0.99
-    clip_range = 0.1
-    ent_coef = 0.01
-    
-    # Network architecture (must match Phase 3)
-    import torch.nn as nn
-    policy_kwargs = dict(
-        net_arch=[256, 256, 256],
-        activation_fn=nn.Tanh
-    )
+    return config
 
 
-def make_env(config: Phase4Config, rank: int, seed: int = 0):
+def make_env(config: Dict[str, Any], rank: int, seed: int = 0):
     """Create a single environment instance."""
     def _init():
+        env_config = config['environment']
         env = FullProductionEnv(
-            n_machines=config.n_machines,
-            n_jobs=config.n_jobs,
-            state_compression=config.state_compression,
-            use_break_constraints=config.use_break_constraints,
-            use_holiday_constraints=config.use_holiday_constraints,
-            max_episode_steps=2000,
-            seed=seed + rank
+            n_machines=env_config['n_machines'],
+            n_jobs=env_config['n_jobs'],
+            state_compression=env_config['state_compression'],
+            use_break_constraints=env_config['use_break_constraints'],
+            use_holiday_constraints=env_config['use_holiday_constraints'],
+            max_episode_steps=env_config['max_episode_steps'],
+            seed=env_config.get('seed', 42) + rank
         )
         env = Monitor(env)
         return env
     return _init
 
 
-def load_phase3_model(config: Phase4Config):
+def load_phase3_model(config: Dict[str, Any]):
     """Load the trained Phase 3 model."""
-    if not Path(config.phase3_model_path).exists():
-        logger.warning(f"Phase 3 model not found at {config.phase3_model_path}")
+    phase3_path = config['models']['phase3_model_path']
+    if not Path(phase3_path).exists():
+        logger.warning(f"Phase 3 model not found at {phase3_path}")
         logger.info("Will train from scratch instead")
         return None
         
-    logger.info(f"Loading Phase 3 model from {config.phase3_model_path}")
+    logger.info(f"Loading Phase 3 model from {phase3_path}")
     
     try:
         model = PPO.load(
-            config.phase3_model_path,
-            device="auto"
+            phase3_path,
+            device=config['training'].get('device', 'auto')
         )
         logger.info("Successfully loaded Phase 3 model")
         return model
@@ -120,17 +107,18 @@ def load_phase3_model(config: Phase4Config):
         return None
 
 
-def evaluate_model(model, config: Phase4Config, n_eval_episodes: int = 5) -> Dict[str, Any]:
+def evaluate_model(model, config: Dict[str, Any], n_eval_episodes: int = 5) -> Dict[str, Any]:
     """Evaluate model performance."""
     logger.info(f"Evaluating model for {n_eval_episodes} episodes...")
     
     # Create evaluation environment
+    env_config = config['environment']
     eval_env = FullProductionEnv(
-        n_machines=config.n_machines,
-        n_jobs=config.n_jobs,
-        state_compression=config.state_compression,
-        use_break_constraints=config.use_break_constraints,
-        use_holiday_constraints=config.use_holiday_constraints,
+        n_machines=env_config['n_machines'],
+        n_jobs=env_config['n_jobs'],
+        state_compression=env_config['state_compression'],
+        use_break_constraints=env_config['use_break_constraints'],
+        use_holiday_constraints=env_config['use_holiday_constraints'],
         seed=9999
     )
     
@@ -181,22 +169,24 @@ def evaluate_model(model, config: Phase4Config, n_eval_episodes: int = 5) -> Dic
     return avg_results
 
 
-def train_phase4():
+def train_phase4(config_path: str = "app/configs/phase4_config.yaml"):
     """Main training function for Phase 4."""
-    config = Phase4Config()
+    config = load_config(config_path)
     
     # Create output directory
-    output_path = Path(config.output_dir)
+    output_path = Path(config['models']['output_dir'])
     output_path.mkdir(parents=True, exist_ok=True)
     
     logger.info("=== Phase 4: Full Production Scale Training ===")
-    logger.info(f"Machines: {config.n_machines}")
-    logger.info(f"Jobs: {config.n_jobs}")
-    logger.info(f"State compression: {config.state_compression}")
+    logger.info(f"Config file: {config_path}")
+    logger.info(f"Machines: {config['environment']['n_machines']}")
+    logger.info(f"Jobs: {config['environment']['n_jobs']}")
+    logger.info(f"State compression: {config['environment']['state_compression']}")
     
     # Create vectorized environment
-    logger.info(f"Creating {config.n_envs} parallel environments...")
-    env = SubprocVecEnv([make_env(config, i) for i in range(config.n_envs)])
+    n_envs = config['training']['n_envs']
+    logger.info(f"Creating {n_envs} parallel environments...")
+    env = SubprocVecEnv([make_env(config, i) for i in range(n_envs)])
     
     # Create evaluation environment
     eval_env = DummyVecEnv([make_env(config, 9999)])
@@ -209,19 +199,28 @@ def train_phase4():
         logger.info("Initializing model with Phase 3 weights...")
         
         # Create new model with same architecture but new environment
+        train_config = config['training']
+        policy_kwargs = dict(
+            net_arch=train_config['network_arch'],
+            activation_fn=train_config['activation_fn']
+        )
+        
         model = PPO(
             "MlpPolicy",
             env,
-            learning_rate=config.learning_rate,
-            n_steps=2048,
-            batch_size=config.batch_size,
-            n_epochs=config.n_epochs,
-            gamma=config.gamma,
-            clip_range=config.clip_range,
-            ent_coef=config.ent_coef,
-            policy_kwargs=config.policy_kwargs,
-            verbose=1,
-            device="auto"
+            learning_rate=train_config['learning_rate'],
+            n_steps=train_config['n_steps'],
+            batch_size=train_config['batch_size'],
+            n_epochs=train_config['n_epochs'],
+            gamma=train_config['gamma'],
+            clip_range=train_config['clip_range'],
+            ent_coef=train_config['ent_coef'],
+            vf_coef=train_config.get('vf_coef', 0.5),
+            max_grad_norm=train_config.get('max_grad_norm', 0.5),
+            gae_lambda=train_config.get('gae_lambda', 0.95),
+            policy_kwargs=policy_kwargs,
+            verbose=train_config.get('verbose', 1),
+            device=train_config.get('device', 'auto')
         )
         
         # Transfer weights (if compatible)
@@ -251,36 +250,48 @@ def train_phase4():
     else:
         # Train from scratch
         logger.info("Creating new model (no Phase 3 model found)...")
+        train_config = config['training']
+        policy_kwargs = dict(
+            net_arch=train_config['network_arch'],
+            activation_fn=train_config['activation_fn']
+        )
+        
         model = PPO(
             "MlpPolicy",
             env,
-            learning_rate=config.learning_rate,
-            n_steps=2048,
-            batch_size=config.batch_size,
-            n_epochs=config.n_epochs,
-            gamma=config.gamma,
-            clip_range=config.clip_range,
-            ent_coef=config.ent_coef,
-            policy_kwargs=config.policy_kwargs,
-            verbose=1,
-            device="auto"
+            learning_rate=train_config['learning_rate'],
+            n_steps=train_config['n_steps'],
+            batch_size=train_config['batch_size'],
+            n_epochs=train_config['n_epochs'],
+            gamma=train_config['gamma'],
+            clip_range=train_config['clip_range'],
+            ent_coef=train_config['ent_coef'],
+            vf_coef=train_config.get('vf_coef', 0.5),
+            max_grad_norm=train_config.get('max_grad_norm', 0.5),
+            gae_lambda=train_config.get('gae_lambda', 0.95),
+            policy_kwargs=policy_kwargs,
+            verbose=train_config.get('verbose', 1),
+            device=train_config.get('device', 'auto')
         )
         initial_results = None
         
     # Set up callbacks
+    eval_config = config['evaluation']
+    log_config = config['logging']
+    
     eval_callback = EvalCallback(
         eval_env,
-        best_model_save_path=str(output_path / "best_model"),
+        best_model_save_path=config['models']['best_model_dir'],
         log_path=str(output_path / "eval_logs"),
-        eval_freq=config.eval_freq,
-        deterministic=True,
-        render=False,
-        n_eval_episodes=3
+        eval_freq=eval_config['eval_freq'],
+        deterministic=eval_config['deterministic'],
+        render=eval_config['render'],
+        n_eval_episodes=eval_config['n_eval_episodes']
     )
     
     checkpoint_callback = CheckpointCallback(
-        save_freq=config.save_freq,
-        save_path=str(output_path / "checkpoints"),
+        save_freq=log_config['save_freq'],
+        save_path=config['models']['checkpoint_dir'],
         name_prefix="phase4_model"
     )
     
@@ -291,11 +302,12 @@ def train_phase4():
     callbacks = CallbackList([eval_callback, checkpoint_callback, logging_callback])
     
     # Train the model
-    logger.info(f"\nStarting training for {config.total_timesteps:,} timesteps...")
+    total_timesteps = config['training']['total_timesteps']
+    logger.info(f"\nStarting training for {total_timesteps:,} timesteps...")
     start_time = datetime.now()
     
     model.learn(
-        total_timesteps=config.total_timesteps,
+        total_timesteps=total_timesteps,
         callback=callbacks,
         reset_num_timesteps=True,
         progress_bar=True
@@ -315,13 +327,7 @@ def train_phase4():
     
     # Save results
     results_data = {
-        "config": {
-            "n_machines": config.n_machines,
-            "n_jobs": config.n_jobs,
-            "state_compression": config.state_compression,
-            "total_timesteps": config.total_timesteps,
-            "learning_rate": config.learning_rate
-        },
+        "config": config,
         "initial_results": initial_results,
         "final_results": final_results,
         "training_time_seconds": training_time,
@@ -337,7 +343,7 @@ def train_phase4():
     
     # Summary
     logger.info("\n=== Training Summary ===")
-    logger.info(f"Scale: {config.n_machines} machines, {config.n_jobs} jobs")
+    logger.info(f"Scale: {config['environment']['n_machines']} machines, {config['environment']['n_jobs']} jobs")
     logger.info(f"Training time: {training_time/60:.1f} minutes")
     
     if initial_results:
@@ -359,7 +365,7 @@ def train_phase4():
     return model, results_data
 
 
-def evaluate_baselines(config: Phase4Config) -> Dict[str, Dict[str, Any]]:
+def evaluate_baselines(config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     """Evaluate baseline policies for comparison."""
     from ..environments.baselines import RandomPolicy, FirstFitPolicy
     
@@ -373,12 +379,13 @@ def evaluate_baselines(config: Phase4Config) -> Dict[str, Dict[str, Any]]:
     for name, policy in baselines.items():
         logger.info(f"\nEvaluating {name} baseline...")
         
+        env_config = config['environment']
         env = FullProductionEnv(
-            n_machines=config.n_machines,
-            n_jobs=config.n_jobs,
-            state_compression=config.state_compression,
-            use_break_constraints=config.use_break_constraints,
-            use_holiday_constraints=config.use_holiday_constraints,
+            n_machines=env_config['n_machines'],
+            n_jobs=env_config['n_jobs'],
+            state_compression=env_config['state_compression'],
+            use_break_constraints=env_config['use_break_constraints'],
+            use_holiday_constraints=env_config['use_holiday_constraints'],
             seed=9999
         )
         
@@ -413,4 +420,6 @@ def evaluate_baselines(config: Phase4Config) -> Dict[str, Dict[str, Any]]:
 
 
 if __name__ == "__main__":
-    train_phase4()
+    import sys
+    config_path = sys.argv[1] if len(sys.argv) > 1 else "app/configs/phase4_config.yaml"
+    train_phase4(config_path)
