@@ -19,7 +19,7 @@ import pandas as pd
 from stable_baselines3 import PPO
 
 from ..environments.full_production_env import FullProductionEnv
-from ..data_ingestion.ingest_data import IngestData
+from ..data_ingestion.ingest_data import ProductionDataIngester
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +57,8 @@ class ModelEvaluator:
         if not Path(self.data_path).exists():
             logger.warning(f"Production data not found at {self.data_path}")
             logger.info("Generating production snapshot from database...")
-            ingest = IngestData()
-            ingest.create_production_snapshot(self.data_path)
+            ingest = ProductionDataIngester()
+            ingest.save_snapshot(self.data_path)
         
         with open(self.data_path, 'r') as f:
             self.production_data = json.load(f)
