@@ -7,8 +7,8 @@ import {
 } from '../types';
 
 // API configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-const API_KEY = process.env.REACT_APP_API_KEY || 'dev-api-key-change-in-production';
+const API_BASE_URL = '';  // Use proxy from vite config
+const API_KEY = 'dev-api-key-change-in-production';
 
 // Create axios instance with default config
 const apiClient = axios.create({
@@ -45,8 +45,8 @@ export const api = {
       const lcdDate = new Date(now.getTime() + (1 + i % 7) * 24 * 60 * 60 * 1000);
       
       jobs.push({
-        job_id: `${prefixes[i % prefixes.length]}${String(i).padStart(4, '0')}`,
-        family_id: `FAM${String(Math.floor(i / 5)).padStart(3, '0')}`,
+        job_id: `${prefixes[i % prefixes.length]}${String(i + 1).padStart(4, '0')}`,
+        family_id: `FAM${String(Math.floor(i / 5) + 1).padStart(3, '0')}`,
         sequence: (i % 5) + 1,
         processing_time: 1.5 + (i % 10) * 0.3,
         machine_types: machineTypeSets[i % machineTypeSets.length],

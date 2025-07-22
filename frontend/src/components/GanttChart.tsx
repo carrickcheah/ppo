@@ -166,16 +166,16 @@ const GanttChart: React.FC<GanttChartProps> = ({ schedule }) => {
                     }}
                     title={`${job.jobId}: ${job.startTime.toFixed(1)}h - ${job.endTime.toFixed(1)}h`}
                   >
-                    {widthPercent > 10 && (
+                    {widthPercent > 5 && (
                       <Typography
                         variant="caption"
                         sx={{
                           color: 'white',
                           fontWeight: 'bold',
-                          fontSize: '0.7rem',
+                          fontSize: widthPercent > 15 ? '0.7rem' : '0.6rem',
                         }}
                       >
-                        {job.jobId.slice(-4)}
+                        {widthPercent > 15 ? job.jobId : job.jobId.slice(-4)}
                       </Typography>
                     )}
                   </Box>

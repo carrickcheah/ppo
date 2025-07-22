@@ -40,7 +40,8 @@ for i in range(20):
         'machine': machine,
         'start_time': start_time,
         'end_time': end_time,
-        'color': colors[i % len(colors)]
+        'color': colors[i % len(colors)],
+        'full_name': job_id  # Keep full job name
     })
     
     current_times[machine] = end_time
@@ -59,18 +60,17 @@ for job in scheduled_jobs:
     )
     ax.add_patch(rect)
     
-    # Add job ID text if rectangle is wide enough
-    if job['end_time'] - job['start_time'] > 1:
-        ax.text(
-            (job['start_time'] + job['end_time']) / 2,
-            y_pos,
-            job['job_id'][-4:],
-            ha='center',
-            va='center',
-            fontsize=9,
-            fontweight='bold',
-            color='white'
-        )
+    # Add full job ID text
+    ax.text(
+        (job['start_time'] + job['end_time']) / 2,
+        y_pos,
+        job['full_name'],  # Show full job name
+        ha='center',
+        va='center',
+        fontsize=8,
+        fontweight='bold',
+        color='white'
+    )
 
 # Calculate metrics
 makespan = max(job['end_time'] for job in scheduled_jobs)
@@ -147,13 +147,13 @@ for i, (label, value, color) in enumerate(metrics):
 
 ax1.text(2, 0.95, 'PPO Production Scheduler Dashboard', ha='center', fontsize=18, fontweight='bold')
 
-# Bottom panel - simplified gantt
+# Bottom panel - full gantt
 ax2.set_xlabel('Time (hours)', fontsize=12)
 ax2.set_ylabel('Machines', fontsize=12)
 ax2.set_title('Schedule Visualization', fontsize=14)
 
-# Plot simplified schedule
-for job in scheduled_jobs[:10]:  # Show only first 10 jobs for clarity
+# Plot all jobs
+for job in scheduled_jobs:  # Show all jobs
     y_pos = machine_y_pos[job['machine']]
     rect = patches.Rectangle(
         (job['start_time'], y_pos - 0.35),
@@ -166,19 +166,21 @@ for job in scheduled_jobs[:10]:  # Show only first 10 jobs for clarity
     )
     ax2.add_patch(rect)
     
-    ax2.text(
-        (job['start_time'] + job['end_time']) / 2,
-        y_pos,
-        job['job_id'][-4:],
-        ha='center',
-        va='center',
-        fontsize=8,
-        color='white'
-    )
+    # Show full job name if space allows
+    if job['end_time'] - job['start_time'] > 1.5:
+        ax2.text(
+            (job['start_time'] + job['end_time']) / 2,
+            y_pos,
+            job['full_name'],
+            ha='center',
+            va='center',
+            fontsize=7,
+            color='white'
+        )
 
 ax2.set_yticks(range(len(machines)))
 ax2.set_yticklabels(machines)
-ax2.set_xlim(0, 15)
+ax2.set_xlim(0, makespan * 1.05)  # Show full schedule
 ax2.grid(True, axis='x', alpha=0.3, linestyle='--')
 
 plt.tight_layout()
