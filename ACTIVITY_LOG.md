@@ -428,5 +428,71 @@
   - Higher learning rate (0.001) and exploration (0.05)
   - Training at ~1,950 FPS with 4 environments
 
+### 2025-07-22 14:00-14:30 - Phase 5 Training Progress & Debug
+- Trained model to 250k steps but crashed due to missing _calculate_makespan method
+- Discovered model was stuck predicting same invalid action (Job 79 → Machine 9)
+  - Job 79 needs machines [52, 53, 54, 55, 56...] but Machine 9 has ID 10
+  - Model hadn't learned compatibility constraints yet
+- Created enhanced exploration training with:
+  - Higher entropy coefficient (0.1 vs 0.01) for more exploration
+  - Smaller batch size (64) and steps (256) for more frequent updates
+  - Larger network architecture (256x256)
+  - Less harsh invalid action penalty (-5 vs -10)
+- Training progress (300k steps):
+  - Deterministic: Still 100% invalid (stuck on one action)
+  - Stochastic: 85% invalid, 15 jobs scheduled (improvement!)
+  - Model beginning to discover valid job-machine pairs
+  - Unique actions explored increased from 1 to 100+
+- Key insight: Model needs stochastic exploration to escape local minima
+  - Deterministic policy gets stuck on first learned pattern
+  - High entropy encourages trying diverse actions
+  - Progress: 0 → 5 → 15 jobs scheduled over 100k step intervals
+
+### 2025-07-22 14:30-15:00 - Phase 5 Extended Training to 750k Steps
+- Continued training from 300k to target 1M steps (stopped at ~777k)
+- Evaluated multiple checkpoints:
+  - 100k: 95 jobs scheduled (30%, 90.5% invalid) - Best performance
+  - 300k: 98 jobs scheduled (31%, 90.2% invalid) - Peak performance  
+  - 550k: 85 jobs scheduled (27%, 91.5% invalid) - Performance degrading
+  - 750k: 48 jobs scheduled (15%, 90.4% invalid) - Significant degradation
+- Model performance peaked around 300k steps then declined
+- Possible causes of degradation:
+  - Learning rate too high for later training (0.0003)
+  - Overfitting to specific action patterns
+  - Entropy coefficient reduction causing less exploration
+- Key findings:
+  - Hierarchical action space reduces from 46,400 to 465 actions (99% reduction)
+  - Model can learn valid job-machine mappings with exploration
+  - Best models achieve ~30% job scheduling (vs random ~15%)
+  - Still far from production requirements (need 100% scheduling)
+- Next steps needed:
+  - Action masking to prevent invalid actions
+  - Curriculum learning (start with easier jobs)
+  - Better reward shaping for compatibility learning
+  - Lower learning rate for stable convergence
+
+### 2025-07-22 15:00-15:30 - Phase 5 Completion Summary & Documentation Update
+- Phase 5 Results Summary:
+  - Hierarchical action space successfully implemented (46,400 → 465 actions, 99% reduction)
+  - Best model: 300k steps achieving 31% job scheduling (98/320 jobs)
+  - Training performance degraded after 300k steps (down to 15% at 750k)
+  - 90% invalid action rate throughout training shows fundamental issue
+  - Hierarchical approach validated but needs action masking for production
+- Technical Achievements:
+  - MultiDiscrete wrapper for SB3 compatibility working correctly
+  - Fixed dimension issues (320 real jobs, not 411 synthetic)
+  - All 320 jobs visible in single pass (vs Phase 4's 172/batch limit)
+  - Compatibility matrix working (12.3% valid pairs, avg 17.8 machines/job)
+- Decision Point:
+  - Phase 4 model (49.2h makespan, 100% completion) remains best for production
+  - Phase 5 shows promise but requires more sophisticated action masking
+  - API and safety mechanisms already built (July 21) and ready for Phase 4 model
+- Documentation Updated:
+  - ACTIVITY_LOG.md: Added Phase 5 summary
+  - z_TODO.md: Updated Phase 5 status and marked API/safety as complete
+  - z_FLOWS.md: Added Phase 5 workflow and results
+  - app/README.md: Updated to reflect Phase 5 attempt and Phase 4 readiness
+- Recommendation: Deploy Phase 4 model to production while researching better action masking
+
 
 
