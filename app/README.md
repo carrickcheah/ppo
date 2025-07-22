@@ -1,13 +1,20 @@
 # Deep Reinforcement Learning Scheduling System
 
-## Project Status: Phase 4 Complete ✅ (Week 12 of 16)
+## Project Status: Phase 5 In Progress - Hierarchical Action Space (Week 13 of 16)
 
-### Current Achievement
+### Phase 4 Achievement ✅
 - **Curriculum Learning Success**: Scaled from 2 → 10 → 40 → 152 machines
 - **Phase 4 Performance**: 49.2h makespan with 100% completion rate
-- **Full Production Scale**: 152 machines, 500+ jobs successfully handled
+- **Full Production Scale**: 152 machines, 172 jobs/batch (3 batches for 411 total)
 - **State Compression**: Successfully reduced from 505 to 60 features
 - **Sub-linear Scaling**: 3.8x machines → only 2.5x makespan increase
+
+### Phase 5 Progress (Hierarchical Action Space)
+- **Problem**: Action space limitation prevented single-pass scheduling
+- **Solution**: Hierarchical approach - job selection → machine selection
+- **Achievement**: Action space reduced from 59,595 → 556 (99.1% reduction)
+- **Status**: Training challenges - model achieving 100% invalid actions
+- **Next Steps**: Debug action masking, try curriculum learning
 
 ## Project Location
 This project is located at: `/Users/carrickcheah/Project/ppo/app`
@@ -15,7 +22,7 @@ This project is located at: `/Users/carrickcheah/Project/ppo/app`
 ## Table of Contents
 1. [Overview & Architecture](#overview--architecture)
 2. [Completed Phases](#completed-phases)
-3. [Current Phase: Full Production Scale](#current-phase-full-production-scale)
+3. [Current Phase: Hierarchical Action Space](#current-phase-hierarchical-action-space)
 4. [Upcoming Phases](#upcoming-phases)
 5. [Development Workflow](#development-workflow)
 6. [Technical Implementation](#technical-implementation)
@@ -118,35 +125,42 @@ app/
 └── uv.lock                     # Lock file (auto-generated)
 ```
 
-## Current Phase: Phase 4 Complete ✅
+## Current Phase: Hierarchical Action Space
 
-### Phase 4 Results: Full Production Scale (152 Machines)
-- **Status**: Training completed successfully
+### Phase 5 Progress: Solving Action Space Limitation
+- **Problem Identified**: Phase 4 limitation of max_valid_actions=200 prevented single-pass scheduling
+- **Solution**: Hierarchical action space - job selection → machine selection
+- **Implementation Status**:
+  - ✅ Designed two-stage decision making approach
+  - ✅ Reduced action space from 59,595 → 556 (99.1% reduction)
+  - ✅ Implemented MultiDiscrete wrapper for SB3 compatibility
+  - ✅ Fixed n_jobs limitation to handle all 411 jobs
+  - ⚠️ Training challenges: 500k steps resulted in 100% invalid actions
+  
+### Current Training Issues
+- **Symptoms**: Model unable to learn valid job-machine mappings
+- **Training Progress**:
+  - 100k steps: 1 job scheduled (99.8% invalid)
+  - 500k steps: 0 jobs scheduled (100.0% invalid)
+  - Loss converged but not learning correct actions
+- **Next Steps**:
+  - Debug action masking implementation
+  - Try curriculum learning (50 → 100 → 200 → 411 jobs)
+  - Adjust hyperparameters for better exploration
+  - Consider alternative reward structures
+
+## Phase 4 Results (Complete) ✅
+
+### Full Production Scale Achievement (152 Machines)
 - **Performance**: 49.2h makespan with 100% completion rate
-- **Scale**: 152 machines, 500+ jobs
+- **Scale**: 152 machines, 172 jobs/batch (3 batches for 411 total)
 - **Model Location**: `app/models/full_production/final_model.zip`
 - **Key Achievements**:
   - Successfully scaled from 40 to 152 machines
   - Implemented hierarchical state compression (505 → 60 features)
   - Achieved sub-linear scaling (3.8x machines → 2.5x makespan)
   - Maintained 100% job completion rate
-  - All configuration moved to YAML files (no hardcoding)
-  - Enforced real production data usage from MariaDB
-
-## Next Phase: Production Deployment (Weeks 13-16)
-
-### Phase 5: API Development & Deployment 🚀 Starting
-- **Goal**: Deploy PPO scheduler to production environment
-- **Key Tasks**:
-  - Build FastAPI wrapper for model inference
-  - Implement safety mechanisms and fallbacks
-  - Create monitoring and alerting system
-  - Execute gradual rollout plan (shadow → 10% → 50% → 100%)
-- **Success Criteria**:
-  - API response time < 2s
-  - 99.9% uptime
-  - Zero constraint violations
-  - Makespan < 45h (optimization from current 49.2h)
+  - API development complete (FastAPI server ready)
 
 ### Development Commands with UV
 ```bash
@@ -177,13 +191,16 @@ uv run mypy src/
 
 ## Upcoming Phases
 
-### Phase 5: Validation & Safety (Weeks 13-14) 📅
-- Comprehensive constraint satisfaction testing
-- Safety wrapper implementation with fallback to greedy
-- Performance benchmarking against baselines
-- Stress testing with edge cases
+### Phase 5 Completion: Hierarchical Training (Week 13-14) 🔄
+- Debug and fix action masking issues
+- Implement curriculum learning approach
+- Train to 2M+ timesteps with adjusted hyperparameters
+- Achieve <45h makespan target (from 49.2h)
+- Validate single-pass scheduling capability
 
 ### Phase 6: Production Deployment (Weeks 15-16) 📅
+- Integrate hierarchical scheduler with API
+- Comprehensive safety testing
 - Shadow mode deployment (parallel to production)
 - Gradual rollout (10% → 25% → 50% → 100%)
 - Real-time monitoring dashboard
@@ -382,7 +399,8 @@ uv run python src/training/train_full_production.py --resume
 ### Current Models and Results
 - **Phase 1-2**: Toy model achieved 81.25% utilization
 - **Phase 3**: Best model at 40 machines - 19.7h makespan
-- **Phase 4**: Training in progress (checkpoint at 400k steps)
+- **Phase 4**: Full production - 49.2h makespan (100% completion)
+- **Phase 5**: Hierarchical approach - training challenges
 
 ## Performance Benchmarks
 
@@ -390,7 +408,8 @@ uv run python src/training/train_full_production.py --resume
 |-------|-------|-------------|---------|
 | Phase 1-2 | 2 machines, 5 jobs | 81.25% utilization | ✅ Complete |
 | Phase 3 | 40 machines, 172 jobs | 19.7h makespan | ✅ Complete |
-| Phase 4 | 152 machines, 500+ jobs | Training... | 🟡 40% done |
+| Phase 4 | 152 machines, 172 jobs/batch | 49.2h makespan | ✅ Complete |
+| Phase 5 | 145 machines, 411 jobs | 100% invalid actions | 🔄 In Progress |
 
 ### Key Technical Challenges Solved
 
@@ -472,21 +491,30 @@ uv run python src/training/train_full_production.py --resume
    - [x] Respects all constraints
    - [x] Achieved 19.7h makespan
 
-3. **Full Environment (Week 12)** 🟡
-   - [x] Processes 500+ jobs target
+3. **Full Environment (Week 12)** ✅
+   - [x] Processes 411 jobs (172/batch)
    - [x] 152 machines integrated
-   - [ ] Training completion pending
+   - [x] Training completed: 49.2h makespan
+   - [x] API development complete
 
-4. **Production Ready (Week 16)** 📅
+4. **Hierarchical Approach (Week 13)** 🔄
+   - [x] Action space reduced 99.1%
+   - [ ] Single-pass scheduling
+   - [ ] <45h makespan target
+   - [ ] Model convergence
+
+5. **Production Ready (Week 16)** 📅
    - [ ] 99.9% constraint satisfaction
    - [ ] Safety wrapper implemented
    - [ ] Production deployment ready
 
 ### KPI Targets
-| Metric | Current (Greedy) | Target (RL) | Stretch Goal |
-|--------|------------------|-------------|--------------|
-| Avg Days Late | 25.9 | 20.0 | 15.0 |
-| Schedule Time | 4.09s | <10s | <5s |
+| Metric | Phase 4 Result | Phase 5 Target | Stretch Goal |
+|--------|----------------|----------------|--------------|
+| Makespan | 49.2h | <45h | <40h |
+| Completion Rate | 100% | 100% | 100% |
+| Schedule Time | <1s | <2s | <1s |
+| Action Space | 59,595 | 556 | 556 |
 | Machine Utilization Std | High | -20% | -40% |
 | On-time Delivery | ~60% | 75% | 85% |
 | Overtime Hours | Baseline | -10% | -20% |

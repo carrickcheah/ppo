@@ -68,9 +68,19 @@ class MultiDiscreteHierarchicalEnv(HierarchicalProductionEnv):
         self.invalid_action_count = 0
         self.total_actions = 0
         
+        # Update action space to match actual loaded jobs/machines
+        if hasattr(self, 'jobs') and self.jobs is not None:
+            actual_n_jobs = len(self.jobs)
+            actual_n_machines = len(self.machines) if hasattr(self, 'machines') and self.machines else self.n_machines
+            
+            # Update the MultiDiscrete action space
+            self.action_space = spaces.MultiDiscrete([actual_n_jobs, actual_n_machines])
+            logger.info(f"Updated action space to MultiDiscrete([{actual_n_jobs}, {actual_n_machines}])")
+        
         # Add MultiDiscrete-specific info
         info['action_space_type'] = 'MultiDiscrete'
         info['invalid_action_penalty'] = self.invalid_action_penalty
+        info['action_space_dims'] = self.action_space.nvec.tolist()
         
         return obs, info
     

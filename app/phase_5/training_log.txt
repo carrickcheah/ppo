@@ -1,0 +1,70 @@
+
+============================================================
+Phase 5 Extended Training - Target <45h Makespan
+============================================================
+
+Configuration:
+  total_timesteps: 2000000
+  n_envs: 8
+  learning_rate: 0.0003
+  batch_size: 256
+  n_epochs: 10
+  checkpoint_freq: 100000
+  eval_freq: 50000
+  load_checkpoint: models/multidiscrete/fixed/phase5_fixed_100000_steps.zip
+
+Creating 8 training environments...
+/Users/carrickcheah/Project/ppo/app/.venv/lib/python3.12/site-packages/stable_baselines3/common/callbacks.py:418: UserWarning: Training and eval env are not of the same type<stable_baselines3.common.vec_env.subproc_vec_env.SubprocVecEnv object at 0x133c65130> != <stable_baselines3.common.vec_env.dummy_vec_env.DummyVecEnv object at 0x133dc7170>
+  warnings.warn("Training and eval env are not of the same type" f"{self.training_env} != {self.eval_env}")
+
+Loading checkpoint: models/multidiscrete/fixed/phase5_fixed_100000_steps.zip
+Checkpoint loaded - continuing from 100k steps
+
+Starting extended training for 2,000,000 timesteps...
+Expected time: 30-40 minutes
+
+-------------------------------
+| time/              |        |
+|    fps             | 3059   |
+|    iterations      | 1      |
+|    time_elapsed    | 5      |
+|    total_timesteps | 116384 |
+-------------------------------
+-----------------------------------------
+| time/                   |             |
+|    fps                  | 2140        |
+|    iterations           | 2           |
+|    time_elapsed         | 15          |
+|    total_timesteps      | 132768      |
+| train/                  |             |
+|    approx_kl            | 0.013947161 |
+|    clip_fraction        | 0.189       |
+|    clip_range           | 0.2         |
+|    entropy_loss         | -10.8       |
+|    explained_variance   | 0           |
+|    learning_rate        | 0.0003      |
+|    loss                 | 1.14e+03    |
+|    n_updates            | 490         |
+|    policy_gradient_loss | -0.0168     |
+|    value_loss           | 5.62e+03    |
+-----------------------------------------
+-----------------------------------------
+| time/                   |             |
+|    fps                  | 1969        |
+|    iterations           | 3           |
+|    time_elapsed         | 24          |
+|    total_timesteps      | 149152      |
+| train/                  |             |
+|    approx_kl            | 0.012149244 |
+|    clip_fraction        | 0.151       |
+|    clip_range           | 0.2         |
+|    entropy_loss         | -10.8       |
+|    explained_variance   | 0           |
+|    learning_rate        | 0.0003      |
+|    loss                 | 1.29e+03    |
+|    n_updates            | 500         |
+|    policy_gradient_loss | -0.0142     |
+|    value_loss           | 5.4e+03     |
+-----------------------------------------
+/Users/carrickcheah/.local/share/uv/python/cpython-3.12.9-macos-aarch64-none/lib/python3.12/multiprocessing/resource_tracker.py:255: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '

@@ -38,7 +38,7 @@ class HierarchicalProductionEnv(FullProductionEnv):
         data_file: str = None,
         snapshot_file: str = None,
         max_episode_steps: int = 2000,
-        max_valid_actions: int = 200,
+        max_valid_actions: int = None,  # Not used in hierarchical approach
         use_break_constraints: bool = True,
         use_holiday_constraints: bool = True,
         seed: Optional[int] = None,
@@ -46,13 +46,14 @@ class HierarchicalProductionEnv(FullProductionEnv):
         **kwargs
     ):
         # Initialize parent class first
+        # Pass a very large max_valid_actions to avoid any limitation
         super().__init__(
             n_machines=n_machines,
             n_jobs=n_jobs,
             data_file=data_file,
             snapshot_file=snapshot_file,
             max_episode_steps=max_episode_steps,
-            max_valid_actions=max_valid_actions,
+            max_valid_actions=10000,  # Set very high to avoid limitation
             use_break_constraints=use_break_constraints,
             use_holiday_constraints=use_holiday_constraints,
             seed=seed,
@@ -61,6 +62,7 @@ class HierarchicalProductionEnv(FullProductionEnv):
         )
         
         # Override action space with hierarchical structure
+        # Note: This will be updated in reset() with actual job count
         self.action_space = spaces.Dict({
             'job': spaces.Discrete(n_jobs),
             'machine': spaces.Discrete(n_machines)
@@ -150,12 +152,18 @@ class HierarchicalProductionEnv(FullProductionEnv):
         
         obs, info = super().reset(seed=seed, options=options)
         
+        # CRITICAL FIX: Preserve the actual number of jobs loaded
+        # Don't let parent class limit this based on max_valid_actions
+        if hasattr(self, 'jobs') and self.jobs is not None:
+            actual_n_jobs = len(self.jobs)
+            self.n_jobs = actual_n_jobs  # Override any parent class limitation
+        else:
+            actual_n_jobs = self.n_jobs
+            
         # Build compatibility matrix with actual jobs/machines
         self._build_compatibility_matrix()
         
-        # Reset hierarchical tracking (after parent reset which sets n_jobs)
-        # Use the actual number of jobs from loaded data if available
-        actual_n_jobs = len(self.jobs) if hasattr(self, 'jobs') and self.jobs is not None else self.n_jobs
+        # Reset hierarchical tracking with correct job count
         self.job_mask = np.ones(actual_n_jobs, dtype=bool)
         self.machine_masks = {}
         self.last_selected_job = None
