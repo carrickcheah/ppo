@@ -1,6 +1,6 @@
 # Deep Reinforcement Learning Scheduling System
 
-## Project Status: Phase 5 Complete - Ready for Production Deployment (Week 13 of 16)
+## Project Status: Ready for Production Deployment (Week 13 of 16)
 
 ### Phase 4 Achievement ✅ (PRODUCTION READY)
 - **Curriculum Learning Success**: Scaled from 2 → 10 → 40 → 152 machines
@@ -23,8 +23,8 @@ This project is located at: `/Users/carrickcheah/Project/ppo/app`
 ## Table of Contents
 1. [Overview & Architecture](#overview--architecture)
 2. [Completed Phases](#completed-phases)
-3. [Phase 5 Results: Hierarchical Action Space](#current-phase-hierarchical-action-space)
-4. [Phase 4 Production Model](#phase-4-results-complete-)
+3. [Phase 4 Production Model](#phase-4-results-complete-)
+4. [Phase 5 Results: Hierarchical Action Space](#phase-5-results-hierarchical-action-space-)
 5. [Upcoming: Production Deployment](#upcoming-phases)
 6. [Development Workflow](#development-workflow)
 7. [Technical Implementation](#technical-implementation)
@@ -127,9 +127,9 @@ app/
 └── uv.lock                     # Lock file (auto-generated)
 ```
 
-## Current Phase: Hierarchical Action Space
+## Current Status: Production Deployment Ready
 
-### Phase 5 Complete: Hierarchical Action Space Implementation
+### Phase 5 Complete: Hierarchical Action Space Research
 - **Problem Solved**: Phase 4 limitation of max_valid_actions=200 prevented single-pass scheduling
 - **Solution Implemented**: Hierarchical action space - job selection → machine selection
 - **Technical Achievements**:
@@ -147,7 +147,18 @@ app/
   - 550k steps: 27% job scheduling (85 jobs)
   - 750k steps: 15% job scheduling (48 jobs)
 - **Key Finding**: 90% invalid action rate shows need for action masking
-- **Decision**: Use Phase 4 model (49.2h, 100% completion) for production deployment
+
+### Phase 5a Iterative Debugging Process
+- **Dimension Fix**: Discovered and fixed job count mismatch (411 synthetic vs 320 real)
+- **max_valid_actions Fix**: Removed 200 limit → set to 10,000 for full visibility
+- **Hyperparameter Tuning**: Higher LR (0.001), entropy (0.1), exploration focus
+- **Architecture Changes**: Tried 256x256 networks, reduced penalties
+- **Result**: Model improved from 0% to 31% job scheduling but plateaued
+
+### Final Decision
+- **Deploy Phase 4 Model**: 49.2h makespan with 100% completion rate
+- **Infrastructure Ready**: FastAPI server and SafeScheduler already implemented
+- **Future Research**: Action masking and curriculum learning for Phase 5 approach
 
 ## Phase 4 Results (Complete) ✅
 
@@ -208,24 +219,24 @@ uv run mypy src/
 
 ## Development Workflow
 
-### Current Daily Cycle
+### Current Daily Cycle - Deployment Preparation
 ```
 Morning (2-3 hours):
-├── Review previous day's training logs
-├── Analyze failure cases
-├── Adjust hyperparameters/rewards
-└── Start new training runs
+├── Review API performance tests
+├── Validate SafeScheduler constraints
+├── Check Phase 4 model integration
+└── Prepare deployment checklist
 
 Afternoon (3-4 hours):
-├── Implement new features
-├── Write tests
-├── Code review (if team)
-└── Documentation
+├── Shadow mode testing setup
+├── Performance benchmarking
+├── Integration testing with database
+└── Documentation updates
 
 Evening (1 hour):
-├── Monitor training progress
-├── Log findings in journal
-└── Plan next day
+├── Monitor test results
+├── Update deployment plan
+└── Coordinate with operations team
 ```
 
 ### Weekly Sprint Cycle

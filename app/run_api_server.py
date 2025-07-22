@@ -14,10 +14,10 @@ sys.path.append(str(Path(__file__).parent))
 
 import uvicorn
 from src.deployment.api_server import app
-from src.utils.logger import setup_logger
 
 # Setup logging
-logger = setup_logger("api_server", "logs/api_server.log")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("api_server")
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run PPO Scheduler API Server")

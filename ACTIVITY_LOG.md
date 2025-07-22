@@ -492,6 +492,16 @@
   - z_TODO.md: Updated Phase 5 status and marked API/safety as complete
   - z_FLOWS.md: Added Phase 5 workflow and results
   - app/README.md: Updated to reflect Phase 5 attempt and Phase 4 readiness
+- Clarified deployment strategy:
+  - API is model-agnostic - can swap models anytime
+  - Continuous improvement possible post-deployment
+  - A/B testing framework supports gradual rollout
+  - Version management allows instant rollback if needed
+- Future improvement paths identified:
+  - Online learning from production data
+  - Action masking implementation for Phase 5
+  - Alternative algorithms (SAC, genetic, constraint-based)
+  - Hybrid approaches combining RL with optimization
 - Recommendation: Deploy Phase 4 model to production while researching better action masking
 
 
