@@ -114,14 +114,23 @@ class HierarchicalProductionEnv(FullProductionEnv):
             job = self.jobs[job_idx]
             for machine_idx in range(actual_n_machines):
                 machine = self.machines[machine_idx]
-                # Check if machine type is allowed for this job
+                # Check if machine is capable for this job
                 # Handle both dict and object formats
                 if isinstance(job, dict):
+                    capable_machines = job.get('capable_machines', [])
                     allowed_types = job.get('allowed_machine_types', [])
                 else:
+                    capable_machines = getattr(job, 'capable_machines', [])
                     allowed_types = getattr(job, 'allowed_machine_types', [])
                 
-                if allowed_types:
+                # First check capable_machines (machine IDs)
+                if capable_machines:
+                    # Get machine ID
+                    machine_id = machine.get('machine_id', machine_idx) if isinstance(machine, dict) else getattr(machine, 'machine_id', machine_idx)
+                    if machine_id in capable_machines:
+                        self.compatibility_matrix[job_idx, machine_idx] = True
+                # Then check allowed_types if no capable_machines
+                elif allowed_types:
                     machine_type = machine.get('machine_type', 0) if isinstance(machine, dict) else getattr(machine, 'machine_type', 0)
                     if machine_type in allowed_types:
                         self.compatibility_matrix[job_idx, machine_idx] = True
@@ -152,6 +161,10 @@ class HierarchicalProductionEnv(FullProductionEnv):
         self.last_selected_job = None
         self.decision_stage = 'job'
         
+        # Reinitialize scheduled_jobs with correct size
+        self.scheduled_jobs = [None] * actual_n_jobs
+        self.machine_available_times = np.zeros(len(self.machines) if self.machines else self.n_machines)
+        
         # Clear caches
         self.compatibility_cache.clear()
         
@@ -181,7 +194,8 @@ class HierarchicalProductionEnv(FullProductionEnv):
         machine_idx = action['machine']
         
         # Validate job selection
-        if job_idx < 0 or job_idx >= self.n_jobs:
+        actual_n_jobs = len(self.jobs) if hasattr(self, 'jobs') and self.jobs else self.n_jobs
+        if job_idx < 0 or job_idx >= actual_n_jobs:
             return self._invalid_action_result(f"Invalid job index: {job_idx}")
         
         if not self.job_mask[job_idx]:
@@ -210,7 +224,7 @@ class HierarchicalProductionEnv(FullProductionEnv):
         
         # Calculate setup time if applicable
         setup_time = 0
-        if self.use_setup_times:
+        if hasattr(self, 'use_setup_times') and self.use_setup_times:
             # Handle both dict and object formats
             family_id = job.get('family_id', None) if isinstance(job, dict) else getattr(job, 'family_id', None)
             if family_id:

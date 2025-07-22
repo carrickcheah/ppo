@@ -334,7 +334,8 @@ class FullProductionEnv(ScaledProductionEnv):
                         'priority': priority,
                         'is_important': family_data.get('is_important', False),
                         'lcd_date': datetime.strptime(family_data.get('lcd_date', '2025-12-31'), '%Y-%m-%d').date(),
-                        'allowed_machine_types': sorted(machine_types)
+                        'allowed_machine_types': sorted(machine_types),
+                        'capable_machines': task.get('capable_machines', [])  # Add capable machines
                     }
                     self.jobs.append(job)
                     family['jobs'].append(job_id)
