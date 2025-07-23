@@ -34,8 +34,11 @@ export interface ScheduleMetrics {
 }
 
 export interface ScheduleRequest {
+  request_id?: string;
   jobs: Job[];
-  schedule_start: string;
+  schedule_start?: string;
+  machines?: Machine[];
+  save_to_database?: boolean;
 }
 
 export interface ScheduleResponse {

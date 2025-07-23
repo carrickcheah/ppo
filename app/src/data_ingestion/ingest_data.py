@@ -33,11 +33,11 @@ class ProductionDataIngester:
                  database: str = None,
                  port: int = 3306):
         """Initialize database connection parameters."""
-        self.host = host or os.getenv('DB_HOST', 'localhost')
-        self.user = user or os.getenv('DB_USER', 'root')
-        self.password = password or os.getenv('DB_PASSWORD', '')
-        self.database = database or os.getenv('DB_NAME', 'production')
-        self.port = port or int(os.getenv('DB_PORT', '3306'))
+        self.host = host or os.getenv('MARIADB_HOST', 'localhost')
+        self.user = user or os.getenv('MARIADB_USERNAME', 'root')
+        self.password = password or os.getenv('MARIADB_PASSWORD', '')
+        self.database = database or os.getenv('MARIADB_DATABASE', 'production')
+        self.port = port or int(os.getenv('MARIADB_PORT', '3306'))
         
         # SQL query for fetching job data
         self.job_query = self._build_job_query()

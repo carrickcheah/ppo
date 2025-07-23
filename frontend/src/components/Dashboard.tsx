@@ -1,28 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import {
   Container,
   Grid,
   Paper,
   Typography,
   Box,
-  AppBar,
-  Toolbar,
   Alert,
   CircularProgress,
 } from '@mui/material';
-import ScheduleIcon from '@mui/icons-material/Schedule';
 import HealthStatus from './HealthStatus';
 import ScheduleForm from './ScheduleForm';
 import GanttChart from './GanttChart';
 import MetricsDisplay from './MetricsDisplay';
 import api from '../services/api';
-import { HealthResponse, ScheduleResponse, Job } from '../types';
+import { Job } from '../types';
+import { useSchedule } from '../context/ScheduleContext';
 
 const Dashboard: React.FC = () => {
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [schedule, setSchedule] = useState<ScheduleResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { health, setHealth, schedule, setSchedule, loading, setLoading, error, setError } = useSchedule();
 
   // Check health on mount
   useEffect(() => {
@@ -48,10 +43,7 @@ const Dashboard: React.FC = () => {
     setError(null);
     
     try {
-      const scheduleData = await api.createSchedule({
-        jobs,
-        schedule_start: new Date().toISOString(),
-      });
+      const scheduleData = await api.createSchedule(jobs);
       setSchedule(scheduleData);
     } catch (err: any) {
       setError(err.message || 'Failed to create schedule');
@@ -116,20 +108,7 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
-      <AppBar position="static">
-        <Toolbar>
-          <ScheduleIcon sx={{ mr: 2 }} />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            PPO Production Scheduler
-          </Typography>
-          <Typography variant="body2">
-            {health ? `Environment: ${health.environment}` : 'Connecting...'}
-          </Typography>
-        </Toolbar>
-      </AppBar>
-
-      <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth="xl" sx={{ mt: 2, mb: 4 }}>
         <Grid container spacing={3}>
           {/* Health Status */}
           <Grid item xs={12} md={3}>
@@ -143,7 +122,7 @@ const Dashboard: React.FC = () => {
             <Paper sx={{ p: 2 }}>
               <ScheduleForm 
                 onSchedule={handleSchedule} 
-                disabled={loading || (health && !health.model_loaded)}
+                disabled={loading || (health !== null && !health.model_loaded)}
               />
             </Paper>
           </Grid>
@@ -188,7 +167,6 @@ const Dashboard: React.FC = () => {
           )}
         </Grid>
       </Container>
-    </Box>
   );
 };
 

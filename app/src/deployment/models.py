@@ -125,9 +125,9 @@ class ScheduleRequest(BaseModel):
     This is the main input model for the /schedule endpoint.
     """
     jobs: List[Job] = Field(
-        ...,
-        min_items=1,
-        description="List of jobs to be scheduled"
+        default=[],
+        min_items=0,
+        description="List of jobs to be scheduled (empty list loads from database)"
     )
     machines: Optional[List[Machine]] = Field(
         default=None,

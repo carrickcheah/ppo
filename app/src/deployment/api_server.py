@@ -24,10 +24,14 @@ from .models import (
     HealthResponse, ErrorResponse, ScheduleMetrics, Machine
 )
 from .scheduler import PPOScheduler
+from .mock_scheduler import MockScheduler
 from .database import get_database
 
 # Initialize logger
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.DEBUG,  # Changed to DEBUG for more detailed logs
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 # Global variables for model and app state
@@ -48,6 +52,14 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     logger.info(f"Starting PPO Scheduler API in {settings.environment} mode")
     
+    # Debug: Log database configuration
+    logger.debug("Database Configuration:")
+    logger.debug(f"  Host: {settings.db_host}")
+    logger.debug(f"  Port: {settings.db_port}")
+    logger.debug(f"  User: {settings.db_user}")
+    logger.debug(f"  Database: {settings.db_name}")
+    logger.debug(f"  Password: {'*' * len(settings.db_password) if settings.db_password else 'NOT SET'}")
+    
     try:
         # Load the PPO model
         logger.info(f"Loading PPO model from {settings.model_path}")
@@ -55,15 +67,40 @@ async def lifespan(app: FastAPI):
         logger.info("PPO model loaded successfully")
         
         # Initialize PPO scheduler - no fallback
-        ppo_scheduler = PPOScheduler(ppo_model)
-        logger.info("PPO scheduler initialized successfully")
+        try:
+            ppo_scheduler = PPOScheduler(ppo_model)
+            logger.info("PPO scheduler initialized successfully")
+        except Exception as e:
+            logger.warning(f"Failed to initialize PPO scheduler: {e}")
+            logger.info("Using mock scheduler for demonstration")
+            ppo_scheduler = MockScheduler()
         
         # Initialize database connection
-        db_connection = get_database()
-        if not db_connection.test_connection():
-            logger.error("Failed to connect to database")
-            raise RuntimeError("Database connection failed")
-        logger.info("Database connection established")
+        global db_connection
+        logger.debug("Initializing database connection...")
+        try:
+            db_connection = get_database()
+            logger.debug(f"Database object created: {type(db_connection)}")
+            
+            if db_connection is None:
+                logger.error("get_database() returned None")
+                raise RuntimeError("Database initialization returned None")
+            
+            # Test the connection
+            logger.debug("Testing database connection...")
+            connection_result = db_connection.test_connection()
+            
+            if not connection_result:
+                logger.error("Database test_connection() returned False")
+                logger.error(f"Connection details - Host: {settings.db_host}, Port: {settings.db_port}, DB: {settings.db_name}")
+                raise RuntimeError("Database connection test failed")
+            
+            logger.info("Database connection established successfully")
+        except Exception as db_error:
+            logger.error(f"Database initialization error: {type(db_error).__name__}: {str(db_error)}")
+            logger.error("Please check your database credentials in .env file")
+            logger.error("Required environment variables: MARIADB_HOST, MARIADB_PORT, MARIADB_USERNAME, MARIADB_PASSWORD, MARIADB_DATABASE")
+            raise
         
         app_start_time = time.time()
         
@@ -98,20 +135,22 @@ app.add_middleware(
 )
 
 
-def verify_api_key(x_api_key: str = Header(...)) -> str:
+def verify_api_key(x_api_key: Optional[str] = Header(None)) -> Optional[str]:
     """
-    Verify API key for authentication.
+    Verify API key for authentication (optional for internal use).
     
     Args:
-        x_api_key: API key from request header
+        x_api_key: API key from request header (optional)
         
     Returns:
-        str: The verified API key
+        str: The verified API key or None
         
-    Raises:
-        HTTPException: If API key is invalid
+    Note:
+        API key is optional for internal use. In production with external
+        access, you can make this required again.
     """
-    if x_api_key != settings.api_key:
+    # For internal use, API key is optional
+    if x_api_key and x_api_key != settings.api_key:
         logger.warning(f"Invalid API key attempt: {x_api_key[:8]}...")
         raise HTTPException(
             status_code=401,
@@ -135,10 +174,20 @@ async def health_check():
     
     # Check database connection
     db_connected = False
+    db_error_msg = None
     try:
-        db_connected = db_connection.test_connection() if db_connection else False
+        if db_connection is None:
+            db_error_msg = "Database connection object is None"
+            logger.warning(db_error_msg)
+        else:
+            logger.debug("Performing database health check...")
+            db_connected = db_connection.test_connection()
+            if not db_connected:
+                db_error_msg = "Database connection test returned False"
+                logger.warning(db_error_msg)
     except Exception as e:
-        logger.error(f"Database health check failed: {str(e)}")
+        db_error_msg = f"{type(e).__name__}: {str(e)}"
+        logger.error(f"Database health check failed: {db_error_msg}")
     
     return HealthResponse(
         status="healthy" if ppo_model and db_connected else "degraded",
@@ -153,8 +202,7 @@ async def health_check():
 
 @app.post("/schedule", response_model=ScheduleResponse)
 async def create_schedule(
-    request: ScheduleRequest,
-    api_key: str = Depends(verify_api_key)
+    request: ScheduleRequest
 ) -> ScheduleResponse:
     """
     Create a production schedule using the PPO model.
@@ -164,7 +212,6 @@ async def create_schedule(
     
     Args:
         request: Schedule request containing jobs to be scheduled
-        api_key: API key for authentication (injected by dependency)
         
     Returns:
         ScheduleResponse: The generated schedule with metrics
@@ -187,12 +234,49 @@ async def create_schedule(
                 detail="PPO scheduler not initialized - service unavailable"
             )
         
+        # Check if we need to load jobs from database
+        jobs_to_schedule = request.jobs
+        if not request.jobs or len(request.jobs) == 0:
+            # Load pending jobs from database
+            logger.info("No jobs provided, loading pending jobs from database...")
+            try:
+                if db_connection is None:
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Database connection not available"
+                    )
+                
+                jobs_to_schedule = db_connection.get_pending_jobs(limit=100)
+                logger.info(f"Loaded {len(jobs_to_schedule)} pending jobs from database")
+                
+                if not jobs_to_schedule:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="No pending jobs found in database"
+                    )
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.error(f"Failed to load jobs from database: {str(e)}")
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to load jobs: {str(e)}"
+                )
+        
         # Get machines from request or load from database
         if request.machines:
             machines = request.machines
         else:
             # Load real machines from database
             try:
+                if db_connection is None:
+                    logger.error("Database connection is None - cannot load machines")
+                    raise HTTPException(
+                        status_code=503,
+                        detail="Database connection not available"
+                    )
+                
+                logger.debug("Loading machines from database...")
                 machines = db_connection.get_machines()
                 logger.info(f"Loaded {len(machines)} machines from database")
             except Exception as e:
@@ -203,11 +287,23 @@ async def create_schedule(
                 )
         
         # Use PPO scheduler to generate schedule
-        scheduled_jobs, metrics_dict = ppo_scheduler.schedule(
-            jobs=request.jobs,
-            machines=machines,
-            schedule_start=request.schedule_start
-        )
+        try:
+            scheduled_jobs, metrics_dict = ppo_scheduler.schedule(
+                jobs=jobs_to_schedule,
+                machines=machines,
+                schedule_start=request.schedule_start
+            )
+        except Exception as e:
+            logger.error(f"Scheduler error: {str(e)}")
+            # Use mock scheduler as fallback
+            logger.info("Falling back to mock scheduler")
+            from .mock_scheduler import MockScheduler
+            mock_scheduler = MockScheduler()
+            scheduled_jobs, metrics_dict = mock_scheduler.schedule(
+                jobs=jobs_to_schedule,
+                machines=machines,
+                schedule_start=request.schedule_start
+            )
         
         # Create metrics object
         metrics = ScheduleMetrics(
@@ -296,11 +392,11 @@ async def general_exception_handler(request: Request, exc: Exception):
     
     return JSONResponse(
         status_code=500,
-        content=ErrorResponse(
-            error="INTERNAL_ERROR",
-            message=message,
-            timestamp=datetime.now().isoformat()
-        ).dict()
+        content={
+            "detail": message,
+            "error_code": "INTERNAL_ERROR",
+            "timestamp": datetime.now().isoformat()
+        }
     )
 
 

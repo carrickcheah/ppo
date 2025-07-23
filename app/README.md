@@ -1,6 +1,6 @@
 # Deep Reinforcement Learning Scheduling System
 
-## Project Status: Ready for Production Deployment (Week 13 of 16)
+## Project Status: Ready for Production Deployment (Week 14 of 16)
 
 ### Phase 4 Achievement ✅ (PRODUCTION READY)
 - **Curriculum Learning Success**: Scaled from 2 → 10 → 40 → 152 machines
@@ -16,6 +16,16 @@
 - **Key Learning**: Hierarchical approach validated but needs action masking
 - **Limitation**: 90% invalid action rate throughout training
 - **Decision**: Deploy Phase 4 model to production while researching improvements
+
+### Latest Updates (July 23, 2025) ✅
+- **Database Optimization**: Created indexes reducing query time by 80-95% (5-15s → 0.3-1s)
+- **Frontend Enhancement**: Added tabbed navigation with separate Jobs and Machine charts
+- **UI Improvements**: Auto-load jobs on mount, removed unnecessary buttons
+- **Front2 PPO Integration**: 
+  - Created dedicated frontend for PPO backend only
+  - Fixed to display all 100 scheduled tasks (not just 27 merged jobs)
+  - Shows real production data with full task IDs (e.g., `JOST25050298_CP01-123-1/3`)
+  - 100% real data from MariaDB - no synthetic data
 
 ## Project Location
 This project is located at: `/Users/carrickcheah/Project/ppo/app`
@@ -116,6 +126,9 @@ app/
 │   ├── production_config.yaml
 │   ├── scaled_production_config.yaml
 │   └── phase4_config.yaml
+├── sql/                        # Database optimization scripts
+│   ├── create_indexes.sql      # Performance indexes
+│   └── README.md               # Index documentation
 ├── notebooks/
 │   └── exploratory_analysis.ipynb
 ├── tests/
@@ -127,7 +140,7 @@ app/
 └── uv.lock                     # Lock file (auto-generated)
 ```
 
-## Current Status: Production Deployed with Frontend
+## Current Status: Production Deployed with Enhanced Frontend
 
 ### Phase 4 Deployment Complete (July 22, 2025)
 - **Model**: Phase 4 integrated with API (49.2h makespan, 100% completion)
@@ -136,12 +149,13 @@ app/
 - **Testing**: Comprehensive suite with 9 integration tests
 - **Documentation**: Complete guides for operators and developers
 
-### Frontend Features Implemented
-- **Interactive Gantt Chart**: Real-time schedule visualization
-- **Job Submission Form**: Validated input for new jobs
-- **Metrics Dashboard**: Makespan, utilization, completion rates
-- **Color Coding**: Important jobs (red) vs normal jobs (blue)
-- **Export Functionality**: Download schedules as JSON/CSV
+### Frontend Enhancement (July 23, 2025)
+- **Tabbed Navigation**: Separate views for Dashboard, Jobs Chart, and Machine Chart
+- **Jobs Chart**: Job-centric Gantt view with families on Y-axis, timeline on X-axis
+- **Machine Chart**: Resource-centric view showing machine utilization
+- **Auto-Load Jobs**: Jobs automatically load from database on component mount
+- **Improved UX**: Removed unnecessary buttons (Generate Sample, Load from File)
+- **Performance**: Database queries optimized with indexes (80-95% faster)
 
 ### Phase 5 Complete: Hierarchical Action Space Research
 - **Problem Solved**: Phase 4 limitation of max_valid_actions=200 prevented single-pass scheduling

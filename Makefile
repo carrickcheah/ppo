@@ -1,10 +1,11 @@
 # PPO Production Scheduler - MAKEFILE
-.PHONY: help run backend frontend install clean test
+.PHONY: help run run2 backend frontend install clean test
 
 # Default target
 help:
 	@echo "PPO Production Scheduler Commands:"
 	@echo "  make run       - Start both backend and frontend"
+	@echo "  make run2      - Start backend and front2 (new UI)"
 	@echo "  make backend   - Start backend API only"
 	@echo "  make frontend  - Start frontend only"
 	@echo "  make install   - Install all dependencies"
@@ -28,6 +29,24 @@ run:
 	@sleep 2
 	@echo "Starting frontend..."
 	@cd frontend && npm start
+
+# Run backend and front2
+run2:
+	@echo "Starting PPO Production Scheduler with Front2..."
+	@echo "Backend API: http://localhost:8000"
+	@echo "Front2: http://localhost:3000"
+	@echo "API Docs: http://localhost:8000/docs"
+	@echo "----------------------------------------"
+	@echo "Checking if backend is already running..."
+	@if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null ; then \
+		echo "Backend already running on port 8000"; \
+	else \
+		echo "Starting backend..."; \
+		cd app && uv run python scripts/run_api_server.py & \
+	fi
+	@sleep 2
+	@echo "Starting front2..."
+	@cd front2 && npm run dev
 
 # Start backend only
 backend:

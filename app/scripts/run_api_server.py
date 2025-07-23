@@ -8,9 +8,19 @@ It handles proper configuration loading and uvicorn server setup.
 
 import sys
 import os
+import logging
+
+# Setup logging first
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # Add the app directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Debug environment
+logger.debug(f"Current working directory: {os.getcwd()}")
+logger.debug(f"Script location: {os.path.abspath(__file__)}")
+logger.debug(f"Looking for .env at: {os.path.join(os.getcwd(), '.env')}")
 
 import uvicorn
 from src.deployment.settings import get_settings
@@ -21,7 +31,13 @@ def main():
     Main entry point for starting the API server.
     """
     # Load settings
-    settings = get_settings()
+    try:
+        settings = get_settings()
+        logger.info("Settings loaded successfully")
+    except Exception as e:
+        logger.error(f"Failed to load settings: {type(e).__name__}: {str(e)}")
+        logger.error("Make sure .env file exists with required MARIADB_* variables")
+        sys.exit(1)
     
     # Configure uvicorn
     log_config = uvicorn.config.LOGGING_CONFIG

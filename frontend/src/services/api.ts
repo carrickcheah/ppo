@@ -8,13 +8,11 @@ import {
 
 // API configuration
 const API_BASE_URL = '';  // Use proxy from vite config
-const API_KEY = 'dev-api-key-change-in-production';
 
 // Create axios instance with default config
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    'X-API-Key': API_KEY,
     'Content-Type': 'application/json',
   },
   timeout: 30000, // 30 seconds
@@ -29,7 +27,16 @@ export const api = {
   },
 
   // Create a new schedule
-  async createSchedule(request: ScheduleRequest): Promise<ScheduleResponse> {
+  async createSchedule(jobs?: Job[], useDatabase: boolean = false): Promise<ScheduleResponse> {
+    const request: ScheduleRequest = {
+      request_id: `req_${Date.now()}`,
+      jobs: jobs || [],
+      schedule_start: new Date().toISOString(),
+      save_to_database: false,
+      // If no jobs provided and useDatabase is true, backend will load from DB
+      machines: useDatabase && (!jobs || jobs.length === 0) ? undefined : undefined,
+    };
+    
     const response = await apiClient.post<ScheduleResponse>('/schedule', request);
     return response.data;
   },

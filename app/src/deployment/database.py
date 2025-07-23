@@ -18,9 +18,6 @@ from dotenv import load_dotenv
 from .models import Machine, Job
 from .settings import get_settings
 
-# Load environment variables
-load_dotenv()
-
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -32,14 +29,19 @@ class DatabaseConnection:
     
     def __init__(self):
         """Initialize database connection parameters from settings."""
-        settings = get_settings()
-        self.host = settings.db_host
-        self.user = settings.db_user
-        self.password = settings.db_password
-        self.database = settings.db_name
-        self.port = settings.db_port
-        
-        logger.info(f"Database connection initialized for {self.database}@{self.host}:{self.port}")
+        try:
+            settings = get_settings()
+            self.host = settings.db_host
+            self.user = settings.db_user
+            self.password = settings.db_password
+            self.database = settings.db_name
+            self.port = settings.db_port
+            
+            logger.info(f"Database connection initialized for {self.database}@{self.host}:{self.port}")
+            logger.debug(f"Database config - Host: {self.host}, Port: {self.port}, User: {self.user}, DB: {self.database}")
+        except Exception as e:
+            logger.error(f"Failed to initialize database settings: {type(e).__name__}: {str(e)}")
+            raise
     
     @contextmanager
     def get_connection(self):
@@ -59,8 +61,12 @@ class DatabaseConnection:
                 charset='utf8mb4'
             )
             yield connection
+        except pymysql.Error as e:
+            logger.error(f"MySQL connection error ({e.args[0]}): {e.args[1]}")
+            logger.error(f"Connection params - Host: {self.host}:{self.port}, User: {self.user}, Database: {self.database}")
+            raise
         except Exception as e:
-            logger.error(f"Database connection error: {str(e)}")
+            logger.error(f"Database connection error: {type(e).__name__}: {str(e)}")
             raise
         finally:
             if connection:
@@ -78,7 +84,7 @@ class DatabaseConnection:
             MachineId_i as machine_id,
             MachineName_v as machine_name,
             MachinetypeId_i as machine_type,
-            COALESCE(CurrentLoad_d, 0) as current_load,
+            0 as current_load,  -- CurrentLoad_d column doesn't exist
             Status_i as status
         FROM tbl_machine
         WHERE Status_i = 1  -- Active machines only
@@ -120,17 +126,18 @@ class DatabaseConnection:
         Returns:
             List of Job objects ready for scheduling
         """
+        # Use the same query structure as ingest_data.py
         query = """
-        SELECT DISTINCT
+        SELECT
             jot.DocRef_v AS job_id,
-            jot.Material_v AS family_id,
-            jop.SeqNo_i AS sequence,
+            jot.DocRef_v AS family_id,
+            jop.RowId_i AS sequence,
             jot.TargetDate_dd AS lcd_date,
             jot.JoQty_d AS quantity,
-            jop.MachinetypeId_i AS machine_type,
+            tm.MachinetypeId_i AS machine_type,
             jop.SetupTime_d AS setup_time,
-            jot.JoStatus_v AS status,
-            jot.CustomerImportance_v AS importance,
+            jop.QtyStatus_c AS status,
+            CASE WHEN jot.TargetDate_dd <= DATE_ADD(CURDATE(), INTERVAL 7 DAY) THEN 'High' ELSE 'Normal' END AS importance,
             
             -- Calculate processing time in hours
             CASE 
@@ -140,18 +147,26 @@ class DatabaseConnection:
                     jop.LeadTime_d * 8  -- Convert days to hours (8 hour workday)
                 ELSE 
                     2.0  -- Default 2 hours if no data
-            END AS processing_time
+            END AS processing_time,
             
-        FROM tbl_joborder_task jot
-        INNER JOIN tbl_joborder_plan jop ON jot.DocRef_v = jop.DocRef_v
+            jop.Machine_v,
+            jop.Task_v AS process_code
+            
+        FROM tbl_jo_process AS jop
+        INNER JOIN tbl_jo_txn AS jot ON jot.TxnId_i = jop.TxnId_i
+        LEFT JOIN tbl_machine AS tm ON tm.MachineId_i = CAST(jop.Machine_v AS UNSIGNED)
         WHERE 
-            jot.Status_i = 1  -- Active jobs
-            AND jot.JoStatus_v IN ('Pending', 'Ready')  -- Not yet scheduled
-            AND jot.TargetDate_dd >= CURDATE()  -- Future deadlines only
-            AND jop.MachinetypeId_i IS NOT NULL  -- Has machine assignment
+            jot.Void_c != 1
+            AND jot.DocStatus_c NOT IN ('CP', 'CX')
+            AND jop.QtyStatus_c != 'FF'  -- Not finished
+            AND jot.TargetDate_dd > CURDATE()  -- Future deadlines only
+            AND jot.TargetDate_dd <= DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+            AND jot.MaterialDate_dd IS NOT NULL
+            AND jot.MaterialDate_dd <= CURDATE()  -- Material arrived
         ORDER BY 
             jot.TargetDate_dd ASC,  -- Earliest deadline first
-            jot.CustomerImportance_v DESC  -- Important customers first
+            jop.TxnId_i ASC,
+            jop.RowId_i ASC
         """
         
         if limit:
@@ -165,39 +180,32 @@ class DatabaseConnection:
                     cursor.execute(query)
                     results = cursor.fetchall()
                     
-                    # Group by job to get all machine types
-                    job_dict = {}
-                    
+                    # Convert results to Job objects
                     for row in results:
-                        job_id = row['job_id']
+                        # Parse LCD date
+                        lcd_date = row['lcd_date']
+                        if isinstance(lcd_date, str):
+                            lcd_date = datetime.strptime(lcd_date, '%Y-%m-%d')
                         
-                        if job_id not in job_dict:
-                            # Parse LCD date
-                            lcd_date = row['lcd_date']
-                            if isinstance(lcd_date, str):
-                                lcd_date = datetime.strptime(lcd_date, '%Y-%m-%d')
-                            
-                            job_dict[job_id] = {
-                                'job_id': job_id,
-                                'family_id': row['family_id'] or job_id,
-                                'sequence': row['sequence'] or 1,
-                                'processing_time': float(row['processing_time']),
-                                'machine_types': [],
-                                'is_important': row['importance'] == 'High',
-                                'lcd_date': lcd_date,
-                                'setup_time': float(row['setup_time']) if row['setup_time'] else 0.3
-                            }
+                        # Determine machine types based on assigned machine or process code
+                        machine_types = []
+                        if row['machine_type']:
+                            machine_types.append(row['machine_type'])
+                        else:
+                            # For manual processes, allow all machine types (1-10)
+                            machine_types = list(range(1, 11))
                         
-                        # Add machine type if not already present
-                        machine_type = row['machine_type']
-                        if machine_type and machine_type not in job_dict[job_id]['machine_types']:
-                            job_dict[job_id]['machine_types'].append(machine_type)
-                    
-                    # Convert to Job objects
-                    for job_data in job_dict.values():
-                        if job_data['machine_types']:  # Only add jobs with valid machine types
-                            job = Job(**job_data)
-                            jobs.append(job)
+                        job = Job(
+                            job_id=row['job_id'],
+                            family_id=row['family_id'] or row['job_id'],
+                            sequence=row['sequence'] or 1,
+                            processing_time=float(row['processing_time']),
+                            machine_types=machine_types,
+                            is_important=row['importance'] == 'High',
+                            lcd_date=lcd_date,
+                            setup_time=float(row['setup_time']) if row['setup_time'] else 0.3
+                        )
+                        jobs.append(job)
                     
                     logger.info(f"Loaded {len(jobs)} pending jobs from database")
                     
@@ -337,8 +345,11 @@ class DatabaseConnection:
                     cursor.execute("SELECT 1")
                     result = cursor.fetchone()
                     return result is not None
+        except pymysql.Error as e:
+            logger.error(f"Database connection test failed - MySQL Error ({e.args[0]}): {e.args[1]}")
+            return False
         except Exception as e:
-            logger.error(f"Database connection test failed: {str(e)}")
+            logger.error(f"Database connection test failed: {type(e).__name__}: {str(e)}")
             return False
 
 
