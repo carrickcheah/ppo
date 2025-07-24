@@ -107,6 +107,30 @@
   - Continuous learning and adaptation
   - Simple interface: Raw data in, optimized schedule out
 
+### 2025-07-24 - Data Pipeline Fixes & Multi-Machine Understanding
+- **Critical Schema Understanding**:
+  - `Machine_v` contains machine IDs (not names or types)
+  - Multiple IDs like "57,64,65,66,74" mean job requires ALL 5 machines simultaneously
+  - This is NOT a choice - job occupies all listed machines at once
+- **Processing Time Formula Implemented**:
+  - When `CapMin_d = 1` and `CapQty_d > 0`: 
+    - Hours = (JoQty_d / (CapQty_d * 60)) + (SetupTime_d / 60)
+  - Verified with real data: 500 units at 6/min + 10min setup = 1.56 hours
+  - CycleTime_d removed (always 0 in production)
+- **Database Schema Updates**:
+  - Added `IsImportant` column from tbl_jo_txn (boolean flag)
+  - Added `CapQty_d`, `CapMin_d` for capacity calculations
+  - Job ID now uses DocRef_v + Task_v for better identification
+- **Key Findings from Testing**:
+  - 81 pending jobs across 19 families
+  - 5 multi-machine jobs found (requiring 2-5 machines simultaneously)
+  - 12 jobs have no assigned machines (need handling)
+  - Processing times range from 0.3 to 65 hours
+- **Constraint Clarification**:
+  - Hard: Sequence, machine requirements, no overlap
+  - Soft: Deadlines, importance, efficiency, load balancing
+  - Deployment: Working hours (not part of training)
+
 ### 2025-07-23 - Database Integration & Production Data Testing
 - **Database Schema Integration**:
   - Updated `DBConnector` to work with actual production schema

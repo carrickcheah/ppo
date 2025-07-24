@@ -78,14 +78,14 @@ class DBConnector:
         
         Returns:
             List of job dictionaries with fields:
-            - job_id: Unique job identifier (TxnId_RowId_Task)
+            - job_id: Unique job identifier (DocRef_Task)
             - family_id: Job family identifier (DocRef)
             - sequence: Process sequence within job (RowId)
-            - machine_types: List of compatible machine type IDs
-            - processing_time: Processing time in hours
+            - required_machines: List of machine IDs that must ALL be used simultaneously
+            - processing_time: Processing time in hours (calculated from capacity)
             - lcd_date: Target date (deadline)
             - lcd_days_remaining: Days until deadline
-            - is_important: Boolean importance flag
+            - is_important: Boolean importance flag from IsImportant column
             - product_code: Task/Process description
         """
         if not self.connection:
@@ -103,13 +103,16 @@ class DBConnector:
             t.QtyDone_d,
             t.DocStatus_c,
             t.Void_c,
+            t.IsImportant,
             p.ProcessId_i,
             p.RowId_i,
             p.Task_v,
             p.ProcessDescr_v,
             p.Machine_v,
-            p.CycleTime_d,
+            p.CapQty_d,
+            p.CapMin_d,
             p.SetupTime_d,
+            p.LeadTime_d,
             p.ManCount_i,
             p.DifficultyLevel_i,
             p.QtyStatus_c
@@ -128,15 +131,14 @@ class DBConnector:
                 cursor.execute(query)
                 raw_jobs = cursor.fetchall()
                 
-            # Get machine type mapping
-            machine_type_map = self.get_machine_type_mapping()
+            # No longer need machine type mapping since Machine_v contains IDs directly
                 
             # Process results
             processed_jobs = []
             
             for job in raw_jobs:
-                # Create unique job_id
-                job_id = f"{job['TxnId_i']}_{job['RowId_i']}_{job['Task_v']}"
+                # Create unique job_id using DocRef and Task
+                job_id = f"{job['DocRef_v']}_{job['Task_v']}"
                 
                 # Use DocRef as family_id (groups related jobs)
                 family_id = job['DocRef_v']
@@ -147,40 +149,48 @@ class DBConnector:
                 else:
                     days_remaining = 30  # Default if no target date
                     
-                # Parse machine types from Machine_v field
-                machine_types = []
+                # Parse required machines from Machine_v field
+                # Machine_v contains machine IDs that must ALL be used simultaneously
+                required_machines = []
                 if job['Machine_v']:
-                    # Machine_v contains comma-separated machine names
-                    machine_names = [m.strip() for m in job['Machine_v'].split(',')]
-                    # Map machine names to type IDs
-                    for machine_name in machine_names:
-                        if machine_name in machine_type_map:
-                            machine_types.append(machine_type_map[machine_name])
-                        else:
-                            # If not found in mapping, try to extract from name
-                            # Some machines have type in their name
-                            machine_types.append(1)  # Default type
+                    # Machine_v contains comma-separated machine IDs
+                    machine_ids = [m.strip() for m in str(job['Machine_v']).split(',')]
+                    # Convert to integers
+                    for machine_id in machine_ids:
+                        try:
+                            required_machines.append(int(machine_id))
+                        except ValueError:
+                            logger.warning(f"Invalid machine ID: {machine_id} in job {job_id}")
                 
-                # Remove duplicates and sort
-                machine_types = sorted(list(set(machine_types)))
-                
-                # If no machine types specified, allow all types
-                if not machine_types:
-                    machine_types = list(range(1, 10))  # Default to types 1-9
+                # If no machines specified, this job cannot be scheduled
+                if not required_machines:
+                    logger.warning(f"Job {job_id} has no assigned machines, skipping")
+                    continue
                     
-                # Determine importance based on difficulty level
-                is_important = job.get('DifficultyLevel_i', 0) >= 3
+                # Use IsImportant flag from tbl_jo_txn
+                is_important = bool(job.get('IsImportant', 0))
                 
-                # Calculate processing time in hours
-                processing_time = float(job.get('CycleTime_d', 1.0) or 1.0)
+                # Calculate processing time based on capacity
+                # When CapMin_d = 1 and CapQty_d > 0: capacity is per minute
+                if job.get('CapMin_d') == 1 and job.get('CapQty_d', 0) > 0:
+                    # Hourly capacity = CapQty_d * 60 (convert per-minute to per-hour)
+                    hourly_capacity = float(job['CapQty_d']) * 60
+                    # Hours needed = JoQty_d / hourly_capacity
+                    hours_needed = float(job.get('JoQty_d', 0)) / hourly_capacity
+                    processing_time = hours_needed
+                else:
+                    # Default to 1 hour if no capacity data
+                    processing_time = 1.0
+                
+                # Add setup time (convert minutes to hours)
                 if job.get('SetupTime_d'):
-                    processing_time += float(job['SetupTime_d'])
+                    processing_time += float(job['SetupTime_d']) / 60
                     
                 processed_job = {
                     'job_id': job_id,
                     'family_id': family_id,
                     'sequence': job['RowId_i'],  # Process sequence within job
-                    'machine_types': machine_types,
+                    'required_machines': required_machines,  # ALL machines needed simultaneously
                     'processing_time': processing_time,
                     'lcd_date': job['TargetDate_dd'].isoformat() if job['TargetDate_dd'] else None,
                     'lcd_days_remaining': days_remaining,
@@ -366,41 +376,6 @@ class DBConnector:
         finally:
             self.disconnect()
             
-    def get_machine_type_mapping(self) -> Dict[str, int]:
-        """
-        Get mapping of machine names to machine type IDs.
-        
-        Returns:
-            Dictionary mapping machine names to type IDs
-        """
-        if not self.connection:
-            self.connect()
-            
-        query = """
-        SELECT DISTINCT
-            MachineName_v,
-            MachinetypeId_i
-        FROM tbl_machine
-        WHERE Status_i = 1
-          AND MachineName_v IS NOT NULL
-          AND MachinetypeId_i IS NOT NULL
-        """
-        
-        try:
-            with self.connection.cursor() as cursor:
-                cursor.execute(query)
-                results = cursor.fetchall()
-                
-            mapping = {
-                row['MachineName_v']: row['MachinetypeId_i']
-                for row in results
-            }
-            
-            return mapping
-            
-        except Exception as e:
-            logger.error(f"Error fetching machine type mapping: {e}")
-            return {}
             
     def get_job_count_summary(self) -> Dict[str, int]:
         """
