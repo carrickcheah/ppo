@@ -130,6 +130,25 @@ class DataLoader:
         # Check for both possible keys
         jobs = data.get('jobs', data.get('pending_jobs', []))
         
+        # If no jobs found, check for families structure
+        if not jobs and 'families' in data:
+            jobs = []
+            for family_id, family_data in data['families'].items():
+                for task in family_data.get('tasks', []):
+                    job = {
+                        'job_id': f"{family_id}_{task['sequence']}/{family_data['total_sequences']}",
+                        'family_id': family_id,
+                        'sequence': task['sequence'],
+                        'required_machines': task['capable_machines'],
+                        'processing_time': task['processing_time'],
+                        'lcd_days_remaining': family_data['lcd_days_remaining'],
+                        'is_important': family_data['is_important'],
+                        'product_code': family_data.get('product', ''),
+                        'status': task.get('status', 'pending'),
+                        'quantity': task.get('balance_quantity', 0)
+                    }
+                    jobs.append(job)
+        
         # Apply job limit if specified
         max_jobs = self.config.get('max_jobs')
         if max_jobs and len(jobs) > max_jobs:
