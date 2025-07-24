@@ -277,6 +277,7 @@ events.out.tfevents.*
 *.xml
 *.yaml
 *.yml
+pw.md
 
 # UV/uv specific
 uv.lock
