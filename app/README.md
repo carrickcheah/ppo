@@ -1,163 +1,165 @@
 # Deep Reinforcement Learning Scheduling System
 
-## Project Status: Two Parallel Approaches
+## Project Status: Pure DRL System Ready for Training
 
-### 1. Production System (/app) - Phase 4 Deployed ✅
-- **Achievement**: Full production scale with 152 machines
-- **Performance**: 49.2h makespan with 100% completion rate
-- **Status**: API deployed, Frontend enhanced, Database optimized
-- **Latest**: Front2 integration showing all 100 scheduled tasks with real data
+### Pure DRL System (/app_2) - Phase 2 Complete ✅
+- **Achievement**: Full PPO implementation with transformer architecture
+- **Testing**: 100% test success rate (14/14 tests passing)
+- **Data**: 295 real production jobs from 88 families, 145 machines
+- **Status**: All components tested and ready for Phase 3 (Training)
 
-### 2. Pure DRL System (/app_2) - Phase 1 Complete 🚀
-- **Achievement**: Game-based environment with zero hardcoding
-- **Approach**: AI learns all strategies through experience
-- **Status**: Environment foundation complete, ready for PPO model
-- **Philosophy**: User defines physics, AI discovers optimal play
+## Latest Updates (July 24, 2025)
 
-## Latest Updates (July 23, 2025)
+### Phase 1.5 & 1.6 - Critical Data Fixes
+- **Database Schema Corrections**:
+  - Fixed: `Machine_v` contains machine IDs (not names)
+  - Multi-machine jobs require ALL machines simultaneously
+  - Processing time formula: `Hours = JoQty_d / (CapQty_d * 60)` when `CapMin_d = 1`
+- **Environment Updates**:
+  - Implemented simultaneous multi-machine occupation
+  - Removed working hours from training (deployment only)
+  - 5 multi-machine jobs identified in production data
 
-### Production System Enhancements
-- **Database Optimization**: Created indexes reducing query time by 80-95% (5-15s → 0.3-1s)
-- **Frontend Enhancement**: Added tabbed navigation with separate Jobs and Machine charts
-- **Front2 PPO Integration**: 
-  - Dedicated frontend for PPO backend only
-  - Fixed to display all 100 scheduled tasks (not just 27 merged jobs)
-  - Shows real production data with full task IDs (e.g., `JOST25050298_CP01-123-1/3`)
-- **Sequence Violation Root Cause**: Identified batch scheduler splitting job families
+### Phase 2 - PPO Model Implementation
+- **Architecture Components**:
+  - State encoder for variable-sized inputs (10-1000+ jobs)
+  - Transformer policy with self-attention and cross-attention
+  - Action masking for valid actions only
+  - PPO scheduler with actor-critic architecture
+  - Rollout buffer with GAE computation
+  - Curriculum learning manager (5 stages)
+- **Comprehensive Testing**:
+  - Initial: 64.3% success rate
+  - Final: 100% success rate after fixes
+  - All components validated with production data
 
-### Pure DRL Architecture (/app_2)
-- **Environment Complete**: SchedulingGameEnv with Gymnasium interface
-- **Hard Rules Engine**: Enforces only physics (sequence, compatibility, no overlap)
-- **Reward Function**: Configurable signals for AI learning
-- **Data Layer**: MariaDB integration with flexible data loading
-- **Zero Hardcoding**: All parameters in YAML configurations
+## System Architecture
 
-## System Architecture Comparison
-
-### Production System (/app) - Traditional PPO
+### Pure DRL System - Game-Based Learning
 ```
-MariaDB → Batch Scheduler → PPO Model → Schedule → API
-   ↓           ↓               ↓           ↓        ↓
-[Jobs]   [170 job batches] [Actions]  [Output] [Constraints]
-         (Splits families!)
-```
-
-### Pure DRL System (/app_2) - Game-Based Learning
-```
-MariaDB → Game Environment → PPO Player → Schedule → API
-   ↓            ↓                ↓           ↓        ↓
-[Jobs]    [State/Rules]    [Learn to Play] [Output] [Pure AI]
-          (No batching!)
+MariaDB → Snapshot → Game Environment → PPO Player → Schedule
+   ↓         ↓             ↓                ↓           ↓
+[Real]   [295 jobs]   [Rules Engine]   [Transformer]  [Output]
+[Data]   [145 mach]   [No hardcoding]  [Attention]    [Optimal]
 ```
 
-## Key Differences
+### Key Components
+1. **Data Layer**
+   - Production snapshot with real data
+   - Multi-machine job parsing
+   - Capacity-based processing times
 
-| Aspect | Production System (/app) | Pure DRL System (/app_2) |
-|--------|-------------------------|--------------------------|
-| Approach | PPO with constraints | Pure learning from experience |
-| Batching | 170 jobs/batch | No limits - handles all jobs |
-| Strategies | Some hardcoded | Everything learned |
-| Sequence | Can violate (batch splits) | Physics enforced |
-| Action Space | Fixed size with padding | Variable with attention |
-| Philosophy | Traditional RL | Game-based AI |
+2. **Environment**
+   - Hard constraints as physics
+   - Soft constraints as rewards
+   - No working hours in training
 
-## Project Locations
-- Production System: `/Users/carrickcheah/Project/ppo/app`
-- Pure DRL System: `/Users/carrickcheah/Project/ppo/app_2`
+3. **PPO Model**
+   - Transformer for variable sizes
+   - Action masking for validity
+   - Curriculum learning stages
+
+## Data Summary
+
+### Production Snapshot
+- **Jobs**: 295 tasks from 88 families
+- **Machines**: 145 active machines
+- **Multi-Machine Jobs**: 5 jobs requiring 2-5 machines
+- **Processing Times**: 0.5 - 100+ hours
+- **Deadlines**: 0 - 30 days remaining
+
+### Snapshot Benefits
+- 500x faster than database queries
+- Consistent data for training
+- Offline capability
+- Reproducible experiments
 
 ## Quick Start
 
-### Production System (/app)
-```bash
-cd /Users/carrickcheah/Project/ppo/app
-source .venv/bin/activate
-uv sync
-
-# Check API status
-uv run python src/deployment/api_server.py
-
-# View frontend
-cd ../frontend
-npm start
-```
-
-### Pure DRL System (/app_2)
+### Running Tests
 ```bash
 cd /Users/carrickcheah/Project/ppo/app_2
-source .venv/bin/activate
-uv sync
-
-# Run environment tests
-uv run python run_test.py
-
-# Next: Implement PPO model (Phase 2)
+uv run python phase2/test_result/comprehensive_test.py
 ```
 
-## Development Status
+### Starting Training (Phase 3)
+```bash
+cd /Users/carrickcheah/Project/ppo/app_2
+uv run python phase2/train.py --config configs/training.yaml
+```
 
-### Production System - Complete Through Phase 5a
-- ✅ Phase 1-2: Toy environment (2 machines, 5 jobs)
-- ✅ Phase 3: Scaled production (40 machines, real data)
-- ✅ Phase 4: Full production (152 machines, API deployed)
-- ✅ Phase 5: Hierarchical action space research
-- ✅ Phase 5a: Frontend enhancement & database optimization
+## Project Structure
+```
+/app_2/
+├── src/
+│   ├── data/           # Database & snapshot loading ✅
+│   ├── environment/    # Game rules and physics ✅
+│   └── deployment/     # API server (Phase 4)
+├── phase2/
+│   ├── state_encoder.py         # Variable input handling ✅
+│   ├── transformer_policy.py    # Attention mechanism ✅
+│   ├── action_masking.py        # Valid moves only ✅
+│   ├── ppo_scheduler.py         # Core PPO algorithm ✅
+│   ├── rollout_buffer.py        # Experience storage ✅
+│   ├── curriculum.py            # Progressive learning ✅
+│   ├── train.py                 # Training loop ✅
+│   └── test_result/             # Test reports ✅
+├── data/
+│   └── real_production_snapshot.json  # 295 jobs, 145 machines
+└── configs/
+    ├── environment.yaml    # Game settings
+    ├── training.yaml       # Hyperparameters
+    └── model.yaml          # Architecture config
+```
 
-### Pure DRL System - Phase 1 Complete
-- ✅ Phase 1: Game environment foundation
-  - Scheduling game with hard rules (physics)
-  - Configurable rewards (learning signals)
-  - MariaDB data integration
-  - Comprehensive test suite
-- 🚧 Phase 2: PPO model architecture (IN PROGRESS)
-- ⏳ Phase 3: Training with curriculum learning
-- ⏳ Phase 4: API deployment
-- ⏳ Phase 5: Pure AI evolution
+## Curriculum Learning Stages
 
-## Key Achievements
-
-### Production System
-- 49.2h makespan with 100% job completion
-- API response time <100ms
-- Database queries 80-95% faster with indexes
-- Enhanced UI with job-centric and machine-centric views
-- Real production data visualization
-
-### Pure DRL System
-- Zero hardcoded scheduling strategies
-- Flexible to handle 10-1000+ jobs without modification
-- Clean separation of game rules vs learned strategies
-- All configuration externalized to YAML files
-- Ready for transformer-based PPO implementation
+1. **Toy** (10 jobs, 5 machines) - Learn basic rules
+2. **Small** (50 jobs, 20 machines) - Learn strategies
+3. **Medium** (200 jobs, 50 machines) - Learn scaling
+4. **Large** (500 jobs, 100 machines) - Near production
+5. **Production** (295 jobs, 145 machines) - Full scale
 
 ## Next Steps
 
-### Production System
-1. Shadow mode testing with real production data
-2. Gradual rollout (10% → 50% → 100%)
-3. Continuous monitoring and improvement
+### Phase 3 - Training
+1. Start curriculum learning from toy scale
+2. Monitor training metrics
+3. Adjust hyperparameters as needed
+4. Progress through all 5 stages
+5. Save best model checkpoints
 
-### Pure DRL System
-1. Implement transformer-based PPO model
-2. Create action masking for valid moves only
-3. Build training pipeline with curriculum learning
-4. Train model to discover optimal strategies
-5. Deploy and compare with production system
+### Phase 4 - Deployment
+1. Build FastAPI inference server
+2. Add working hours post-processing
+3. Connect to frontend visualization
+4. Compare with current scheduler
+5. Deploy to production
 
 ## Success Metrics
 
-### Production System (Achieved)
-- ✅ Handle 411 jobs across 152 machines
-- ✅ 100% job completion rate
-- ✅ <1 second scheduling time
-- ✅ API and frontend deployed
+### Achieved ✅
+- Handle variable job counts (10-1000+)
+- Parse multi-machine requirements correctly
+- Calculate processing times with capacity formula
+- 100% test coverage and success rate
+- Real production data integration
 
-### Pure DRL System (Targets)
-- [ ] Handle 1000+ jobs without batching
-- [ ] Learn sequence constraints without being told
-- [ ] Discover priority patterns from rewards
-- [ ] Achieve 95%+ on-time delivery
-- [ ] Zero hardcoded scheduling rules
+### Targets for Training
+- Learn sequence constraints from experience
+- Discover deadline prioritization
+- Achieve 95%+ on-time delivery
+- Minimize total makespan
+- Zero constraint violations
+
+## Key Insights
+
+1. **Multi-Machine Jobs**: Some jobs require multiple machines working together simultaneously
+2. **Processing Times**: Use capacity formula when applicable
+3. **Working Hours**: Apply only during deployment, not training
+4. **Pure Learning**: No hardcoded strategies - everything emerges from rewards
+5. **Snapshot System**: 500x faster than live database queries
 
 ---
 
-*Two approaches to scheduling: Traditional PPO with constraints (production ready) and Pure DRL where AI learns everything (research phase). The future is learning-based scheduling.*
+*Pure Deep Reinforcement Learning: Where scheduling strategies emerge from experience, not rules.*

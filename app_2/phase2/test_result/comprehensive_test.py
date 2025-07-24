@@ -212,11 +212,19 @@ def test_environment():
         rules = RulesEngine(config)
         
         # Test valid action
-        job = {'sequence': 1, 'family_id': 'FAM1', 'required_machines': [1]}
+        job = {'job_id': 'J1', 'sequence': 1, 'family_id': 'FAM1', 'required_machines': [1]}
         machine = {'machine_id': 1}
-        state = {'completed_sequences': {}}
+        current_schedules = [[]]  # Empty schedule
+        completed_jobs = set()
+        job_assignments = {}
+        job_to_family = {'J1': 'FAM1'}
+        job_sequences = {'J1': 1}
+        all_jobs = [job]
         
-        valid, _ = rules.is_action_valid(job, machine, 0, state)
+        valid, _ = rules.is_action_valid(
+            job, machine, current_schedules, completed_jobs,
+            job_assignments, job_to_family, job_sequences, all_jobs
+        )
         assert valid, "Valid action marked as invalid"
     
     test.add_test("Rules engine validation", test_rules_engine)
@@ -224,9 +232,11 @@ def test_environment():
     # Test 4: Reward function
     def test_reward_function():
         config = {
-            'on_time_bonus': 10.0,
-            'tardiness_penalty_rate': 5.0,
-            'importance_multiplier': 2.0
+            'completion_reward': 1.0,
+            'importance_bonus': 5.0,
+            'urgency_multiplier': 10.0,
+            'wait_penalty': 0.1,
+            'makespan_penalty': 0.05
         }
         reward_fn = RewardFunction(config)
         
@@ -235,8 +245,20 @@ def test_environment():
             'lcd_days_remaining': 5,
             'is_important': True
         }
+        machine = {'machine_id': 0}
+        machine_schedules = [[]]  # Empty schedules
         
-        reward = reward_fn.calculate_job_reward(job, 0, 2)
+        reward = reward_fn.calculate_step_reward(
+            job=job,
+            machine=machine,
+            start_time=0,
+            end_time=2,
+            current_time=0,
+            machine_schedules=machine_schedules,
+            completed_jobs=0,
+            total_jobs=10,
+            makespan=2
+        )
         assert isinstance(reward, (int, float)), "Reward should be numeric"
     
     test.add_test("Reward calculation", test_reward_function)
@@ -282,6 +304,7 @@ def test_ppo_model():
     # Test 3: Transformer policy
     def test_transformer_policy():
         config = {
+            'embed_dim': 256,  # Match the default embed_dim
             'hidden_dim': 128,
             'n_heads': 4,
             'n_layers': 2,
@@ -291,11 +314,13 @@ def test_ppo_model():
         }
         policy = TransformerSchedulingPolicy(config)
         
-        # Create test input
+        # Create test input with correct keys and dimensions
         encoded_state = {
-            'jobs': torch.randn(1, 5, 128),
-            'machines': torch.randn(1, 3, 128),
-            'mask': torch.ones(1, 5, 3).bool()
+            'job_embeddings': torch.randn(1, 5, 256),  # Use embed_dim
+            'machine_embeddings': torch.randn(1, 3, 256),  # Use embed_dim
+            'global_embedding': torch.randn(1, 256),  # Use embed_dim
+            'job_mask': torch.ones(1, 5).bool(),
+            'machine_mask': torch.ones(1, 3).bool()
         }
         action_mask = torch.ones(1, 15).bool()
         
@@ -380,19 +405,20 @@ def test_integration():
     
     # Test 1: Data to environment flow
     def test_data_to_env():
-        # Create test data
+        # Create test data - for single machine job
         jobs = [{
             "job_id": "INT001",
             "family_id": "FAM1",
             "sequence": 1,
-            "required_machines": [1],
+            "required_machines": [100],  # Machine ID that will be found by db_machine_id
             "processing_time": 1.5,
             "lcd_days_remaining": 3,
             "is_important": False
         }]
         machines = [{
-            "machine_id": 1,
-            "machine_name": "M1",
+            "machine_id": 0,  # Index
+            "db_machine_id": 100,  # Database ID
+            "machine_name": "M0",
             "machine_type_id": 1
         }]
         

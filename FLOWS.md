@@ -53,8 +53,8 @@ graph TB
 
 2. **Machine Requirements**
    - Jobs MUST use machines specified in `Machine_v`
-   - Single: "80" ’ occupies machine 80
-   - Multiple: "57,64,65,66,74" ’ occupies ALL 5 machines simultaneously
+   - Single: "80" â†’ occupies machine 80
+   - Multiple: "57,64,65,66,74" â†’ occupies ALL 5 machines simultaneously
    - No alternatives allowed
 
 3. **No Time Overlap**
@@ -75,15 +75,15 @@ graph TB
 
 ### 1. Data Extraction from MariaDB
 ```
-tbl_jo_txn + tbl_jo_process ’ Raw Job Data
-              “
+tbl_jo_txn + tbl_jo_process â†’ Raw Job Data
+              â†“
     Calculate Processing Time:
     If CapMin_d = 1 and CapQty_d > 0:
         hours = (JoQty_d / (CapQty_d * 60)) + (SetupTime_d / 60)
-              “
+              â†“
     Parse Machine Requirements:
-    Machine_v = "57,64,65,66,74" ’ required_machines = [57,64,65,66,74]
-              “
+    Machine_v = "57,64,65,66,74" â†’ required_machines = [57,64,65,66,74]
+              â†“
     Create Job Object with all constraints
 ```
 
@@ -132,35 +132,36 @@ When action taken:
 ### Phase 3: Model Architecture
 ```
 Input: Variable number of jobs (10-1000+)
-         “
+         â†“
 Job Transformer Encoder
-         “
+         â†“
 Machine State Encoder
-         “
+         â†“
 Cross-Attention Layer
-         “
-Policy Head ’ Action probabilities
-Value Head ’ State value estimate
+         â†“
+Policy Head â†’ Action probabilities
+Value Head â†’ State value estimate
 ```
 
 ### Phase 4: Curriculum Learning
 ```
-Stage 1: 10 jobs, 5 machines ’ Learn basic rules
-Stage 2: 50 jobs, 20 machines ’ Learn strategies
-Stage 3: 200 jobs, 50 machines ’ Learn scaling
-Stage 4: Full production scale ’ Final training
+Stage 1: 10 jobs, 5 machines â†’ Learn basic rules
+Stage 2: 50 jobs, 20 machines â†’ Learn strategies
+Stage 3: 200 jobs, 50 machines â†’ Learn scaling
+Stage 4: 500 jobs, 100 machines â†’ Near production
+Stage 5: 295 jobs, 145 machines â†’ Full production scale
 ```
 
 ## Deployment Workflow
 
 ### 1. Inference Pipeline
 ```
-Receive job request ’ Load trained model
-                   ’ Create environment
-                   ’ Run PPO inference
-                   ’ Get raw schedule (24/7)
-                   ’ Apply working hours filter
-                   ’ Return valid schedule
+Receive job request â†’ Load trained model
+                   â†’ Create environment
+                   â†’ Run PPO inference
+                   â†’ Get raw schedule (24/7)
+                   â†’ Apply working hours filter
+                   â†’ Return valid schedule
 ```
 
 ### 2. Working Hours Filter
@@ -182,7 +183,7 @@ for scheduled_job in raw_schedule:
 
 ### Training Metrics
 - Episode rewards
-- Constraint violations (should ’ 0)
+- Constraint violations (should â†’ 0)
 - Average makespan
 - On-time delivery rate
 
