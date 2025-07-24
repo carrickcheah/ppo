@@ -127,7 +127,8 @@ class DataLoader:
         with open(snapshot_path, 'r') as f:
             data = json.load(f)
             
-        jobs = data.get('pending_jobs', [])
+        # Check for both possible keys
+        jobs = data.get('jobs', data.get('pending_jobs', []))
         
         # Apply job limit if specified
         max_jobs = self.config.get('max_jobs')

@@ -1,0 +1,75 @@
+================================================================================
+PPO SCHEDULING SYSTEM - FIXED TEST SUITE
+================================================================================
+Started: 2025-07-24 15:43:58
+
+
+Running Data Pipeline tests...
+❌ Data Pipeline: FAILED - 
+Traceback (most recent call last):
+  File "/Users/carrickcheah/Project/ppo/app_2/tests/run_fixed_tests.py", line 59, in main
+    test_func()
+  File "/Users/carrickcheah/Project/ppo/app_2/tests/test_data_pipeline_fixed.py", line 226, in run_data_pipeline_tests
+    loader_tests.test_load_snapshot()
+  File "/Users/carrickcheah/Project/ppo/app_2/tests/test_data_pipeline_fixed.py", line 170, in test_load_snapshot
+    assert 'start_hour' in working_hours
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
+
+Duration: 0.00s
+
+
+Running Environment tests...
+❌ Environment: FAILED - 'available_time'
+Traceback (most recent call last):
+  File "/Users/carrickcheah/Project/ppo/app_2/tests/run_fixed_tests.py", line 59, in main
+    test_func()
+  File "/Users/carrickcheah/Project/ppo/app_2/tests/test_environment_fixed.py", line 325, in run_environment_tests
+    env_tests.test_reset()
+  File "/Users/carrickcheah/Project/ppo/app_2/tests/test_environment_fixed.py", line 135, in test_reset
+    assert machine['available_time'] == 0, "Machine should be available at time 0"
+           ~~~~~~~^^^^^^^^^^^^^^^^^^
+KeyError: 'available_time'
+
+Duration: 0.00s
+
+
+Running PPO Components tests...
+❌ PPO Components: FAILED - 'job_embeddings'
+Traceback (most recent call last):
+  File "/Users/carrickcheah/Project/ppo/app_2/tests/run_fixed_tests.py", line 59, in main
+    test_func()
+  File "/Users/carrickcheah/Project/ppo/app_2/tests/test_ppo_components_fixed.py", line 382, in run_ppo_component_tests
+    TestTransformerPolicy().test_forward_pass()
+  File "/Users/carrickcheah/Project/ppo/app_2/tests/test_ppo_components_fixed.py", line 97, in test_forward_pass
+    action_logits, values = policy(encoded_state, action_mask)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/carrickcheah/Project/ppo/app_2/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1751, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/carrickcheah/Project/ppo/app_2/.venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1762, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/carrickcheah/Project/ppo/app_2/phase2/transformer_policy.py", line 207, in forward
+    job_embeddings = encoded_state['job_embeddings']
+                     ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+KeyError: 'job_embeddings'
+
+Duration: 0.01s
+
+
+================================================================================
+TEST SUMMARY
+================================================================================
+❌ Data Pipeline: FAILED - 
+❌ Environment: FAILED - 'available_time'
+❌ PPO Components: FAILED - 'job_embeddings'
+
+Total: 3 test suites
+Passed: 0
+Failed: 3
+Success Rate: 0.0%
+
+❌ Some tests failed. Please review the errors above.
+
+Completed: 2025-07-24 15:43:58

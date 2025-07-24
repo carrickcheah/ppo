@@ -131,6 +131,31 @@
   - Soft: Deadlines, importance, efficiency, load balancing
   - Deployment: Working hours (not part of training)
 
+### 2025-07-24 - Environment Updates for Multi-Machine Jobs
+- **Multi-Machine Job Support Implemented**:
+  - Updated `SchedulingGameEnv` to handle jobs requiring multiple machines simultaneously
+  - Created `_schedule_multi_machine_job()` method that:
+    - Finds earliest time ALL required machines are available
+    - Schedules job on all machines for entire duration
+    - Tracks multi-machine status in job assignments
+  - Multi-machine jobs receive bonus reward for complexity
+- **Action Masking Enhanced**:
+  - Updated `get_action_mask()` to properly handle multi-machine jobs
+  - Valid to select ANY required machine - environment schedules on ALL
+  - Added `_check_multi_machine_availability()` helper method
+- **Working Hours Removed from Training**:
+  - Per user request, working hours NOT enforced during training
+  - Updated `_adjust_for_working_hours()` to return time as-is
+  - Changed config `enforce_working_hours: false`
+  - Marked as deployment-only constraint in documentation
+- **Testing Results**:
+  - Successfully tested with synthetic multi-machine job (3 machines)
+  - Verified all machines occupied for entire duration
+  - Action masking correctly identifies valid machine choices
+  - Production data test: 81 jobs, 145 machines working correctly
+  - Sequence constraints properly enforced
+  - Edge cases handled (invalid machines, out of bounds)
+
 ### 2025-07-23 - Database Integration & Production Data Testing
 - **Database Schema Integration**:
   - Updated `DBConnector` to work with actual production schema

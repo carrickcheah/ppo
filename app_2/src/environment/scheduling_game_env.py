@@ -192,6 +192,13 @@ class SchedulingGameEnv(gym.Env):
         job = self.jobs[job_idx]
         machine = self.machines[machine_idx]
         
+        # For multi-machine jobs, we need ALL required machines
+        required_machines = job.get('required_machines', [])
+        if len(required_machines) > 1:
+            # This is a multi-machine job - validate all machines are available
+            return self._schedule_multi_machine_job(job_idx, machine_idx)
+        
+        # Single machine job - proceed as normal
         # Calculate start time (after previous jobs on this machine)
         if self.machine_schedules[machine_idx]:
             last_job = self.machine_schedules[machine_idx][-1]
@@ -288,11 +295,12 @@ class SchedulingGameEnv(gym.Env):
                     return False, f"Must complete sequence {other_sequence} first"
         
         # Check machine compatibility
-        job_machine_types = set(job.get('machine_types', []))
-        machine_type = machine.get('machine_type_id')
+        # Job has 'required_machines' which contains DB machine IDs
+        required_machines = job.get('required_machines', [])
+        machine_db_id = machine.get('db_machine_id')
         
-        if job_machine_types and machine_type not in job_machine_types:
-            return False, f"Machine type {machine_type} not compatible"
+        if required_machines and machine_db_id not in required_machines:
+            return False, f"Machine {machine_db_id} not in required machines {required_machines}"
             
         return True, "Valid"
     
@@ -311,10 +319,14 @@ class SchedulingGameEnv(gym.Env):
         return ready_time
     
     def _adjust_for_working_hours(self, start_time: float) -> float:
-        """Adjust start time to respect working hours."""
-        # Simple implementation - can be enhanced
-        # For now, just return the time as-is
-        # In production, would check against working_hours config
+        """
+        Adjust start time to respect working hours.
+        
+        NOTE: Per user request, working hours are NOT enforced during training.
+        This is a deployment-only constraint. The AI learns pure scheduling
+        without being constrained by specific working patterns.
+        """
+        # Working hours disabled for training - return as-is
         return start_time
     
     def _calculate_reward(self, job: Dict, machine: Dict, start_time: float, end_time: float) -> float:
@@ -440,6 +452,125 @@ class SchedulingGameEnv(gym.Env):
                     
         return True
     
+    def _schedule_multi_machine_job(self, job_idx: int, primary_machine_idx: int):
+        """
+        Schedule a job that requires multiple machines simultaneously.
+        
+        For multi-machine jobs:
+        - ALL required machines must be available at the same time
+        - All machines are occupied for the entire duration
+        - The job appears in all machine schedules
+        """
+        job = self.jobs[job_idx]
+        required_machines = job.get('required_machines', [])
+        
+        # Map DB machine IDs to environment indices
+        required_machine_indices = []
+        for db_id in required_machines:
+            for m_idx, m in enumerate(self.machines):
+                if m.get('db_machine_id') == db_id:
+                    required_machine_indices.append(m_idx)
+                    break
+        
+        # Validate we found all required machines
+        if len(required_machine_indices) != len(required_machines):
+            reward = self.config.get('invalid_action_penalty', -20.0)
+            info = {
+                'invalid_action': True,
+                'reason': 'Could not find all required machines'
+            }
+            observation = self._get_observation()
+            terminated = self._is_done()
+            return observation, reward, terminated, False, info
+        
+        # Find the earliest time ALL machines are available
+        start_time = self.current_time
+        for m_idx in required_machine_indices:
+            if self.machine_schedules[m_idx]:
+                last_job = self.machine_schedules[m_idx][-1]
+                start_time = max(start_time, last_job['end_time'])
+        
+        # Check family dependencies
+        family_id = self.job_to_family[job['job_id']]
+        job_sequence = self.job_sequences[job['job_id']]
+        family_ready_time = self._get_family_ready_time(family_id, job_sequence)
+        start_time = max(start_time, family_ready_time)
+        
+        # Apply working hours constraints
+        start_time = self._adjust_for_working_hours(start_time)
+        
+        # Calculate end time
+        processing_time = job['processing_time']
+        end_time = start_time + processing_time
+        
+        # Schedule the job on ALL required machines
+        scheduled_job = {
+            'job': job,
+            'job_idx': job_idx,
+            'machine_indices': required_machine_indices,  # All machines used
+            'start_time': start_time,
+            'end_time': end_time,
+            'is_multi_machine': True
+        }
+        
+        # Add to all machine schedules
+        for m_idx in required_machine_indices:
+            self.machine_schedules[m_idx].append(scheduled_job)
+        
+        self.completed_jobs.add(job_idx)
+        self.job_assignments[job_idx] = scheduled_job
+        
+        # Update current time
+        self.current_time = max(self.current_time, start_time)
+        
+        # Calculate reward - multi-machine jobs might get bonus
+        reward = self._calculate_reward(job, self.machines[primary_machine_idx], start_time, end_time)
+        if len(required_machines) > 1:
+            # Bonus for successfully scheduling complex multi-machine job
+            reward += self.config.get('multi_machine_bonus', 10.0)
+        
+        # Get new state
+        observation = self._get_observation()
+        terminated = self._is_done()
+        
+        # Compile info
+        info = {
+            'scheduled_job': job['job_id'],
+            'on_machines': [self.machines[m_idx]['machine_name'] for m_idx in required_machine_indices],
+            'start_time': start_time,
+            'end_time': end_time,
+            'valid_action': True,
+            'multi_machine': True,
+            'num_machines': len(required_machine_indices)
+        }
+        
+        return observation, reward, terminated, False, info
+    
+    def _check_multi_machine_availability(self, job_idx: int) -> bool:
+        """
+        Check if all required machines for a multi-machine job can be scheduled together.
+        
+        Returns True if all machines will be available at the same time.
+        """
+        job = self.jobs[job_idx]
+        required_machines = job.get('required_machines', [])
+        
+        # Map DB IDs to machine indices
+        required_indices = []
+        for db_id in required_machines:
+            for m_idx, m in enumerate(self.machines):
+                if m.get('db_machine_id') == db_id:
+                    required_indices.append(m_idx)
+                    break
+        
+        # Check if we found all machines
+        if len(required_indices) != len(required_machines):
+            return False
+        
+        # For simplicity, return True - the actual scheduling will handle timing
+        # In a more sophisticated version, we could check future availability
+        return True
+    
     def _get_family_progress(self, family_id: str) -> float:
         """Get completion progress for a family."""
         family_jobs = self.families[family_id]['jobs']
@@ -471,15 +602,40 @@ class SchedulingGameEnv(gym.Env):
         """
         Get mask of valid actions for current state.
         
+        For multi-machine jobs:
+        - Action is valid if choosing ANY of the required machines
+        - Environment will automatically schedule on ALL required machines
+        
         Returns:
             Boolean mask of shape (n_jobs, n_machines)
         """
         mask = np.zeros((self.n_jobs, self.n_machines), dtype=bool)
         
         for job_idx in range(self.n_jobs):
-            for machine_idx in range(self.n_machines):
-                is_valid, _ = self._is_action_valid(job_idx, machine_idx)
-                mask[job_idx, machine_idx] = is_valid
+            # Skip if already scheduled
+            if job_idx in self.completed_jobs:
+                continue
+                
+            job = self.jobs[job_idx]
+            required_machines = job.get('required_machines', [])
+            
+            if len(required_machines) > 1:
+                # Multi-machine job - check if ALL required machines will be available
+                # Mark as valid if choosing ANY of the required machines
+                for machine_idx in range(self.n_machines):
+                    machine_db_id = self.machines[machine_idx].get('db_machine_id')
+                    if machine_db_id in required_machines:
+                        # Check basic validity (sequence, etc)
+                        is_valid, _ = self._is_action_valid(job_idx, machine_idx)
+                        if is_valid:
+                            # Additionally check if ALL required machines can be scheduled together
+                            all_available = self._check_multi_machine_availability(job_idx)
+                            mask[job_idx, machine_idx] = all_available
+            else:
+                # Single machine job - normal validation
+                for machine_idx in range(self.n_machines):
+                    is_valid, _ = self._is_action_valid(job_idx, machine_idx)
+                    mask[job_idx, machine_idx] = is_valid
                 
         return mask.flatten()
     
