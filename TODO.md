@@ -93,21 +93,21 @@ Last Updated: 2025-07-24
 ## Phase 3: Training - Let it Learn to Play (Week 3) 🚧 IN PROGRESS
 
 ### Step 1: Data Preparation & Enhancement ✅ COMPLETE
-- [x] Create multiple data snapshots (rush orders, normal, heavy load)
-- [x] Generate 500+ job snapshot with extended planning horizon
-- [x] Create synthetic variations for edge cases
-- [x] Prepare multi-machine heavy scenarios (30% multi-machine jobs)
+- [] Create multiple data snapshots (rush orders, normal, heavy load)
+- [] Generate 500+ job snapshot with extended planning horizon
+- [] Create synthetic variations for edge cases
+- [] Prepare multi-machine heavy scenarios (30% multi-machine jobs)
 
 ### Step 2: Extended Curriculum Learning (16 stages) 🚧 IN PROGRESS
 #### Foundation Training (100k timesteps) ✅ COMPLETE
-- [x] Toy Easy: 5 jobs, 3 machines - Learn sequence rules
-- [x] Toy Normal: 10 jobs, 5 machines - Learn deadlines
-- [x] Toy Hard: 15 jobs, 5 machines - Learn priorities
-- [x] Toy Multi: 10 jobs, 8 machines - Learn multi-machine
+- [] Toy Easy: 5 jobs, 3 machines - Learn sequence rules
+- [] Toy Normal: 10 jobs, 5 machines - Learn deadlines
+- [] Toy Hard: 15 jobs, 5 machines - Learn priorities
+- [] Toy Multi: 10 jobs, 8 machines - Learn multi-machine
 
 #### Strategy Development (200k timesteps) 🚧 IN PROGRESS
-- [x] Small Balanced: 30 jobs, 15 machines - Balance objectives
-- [⚠️] Small Rush: 50 jobs, 20 machines - Handle urgency (0% utilization issue - needs fix)
+- [] Small Balanced: 30 jobs, 15 machines - Balance objectives
+- [] Small Rush: 50 jobs, 20 machines - Handle urgency 
 - [ ] Small Bottleneck: 40 jobs, 10 machines - Manage constraints
 - [ ] Small Complex: 50 jobs, 25 machines - Complex dependencies
 

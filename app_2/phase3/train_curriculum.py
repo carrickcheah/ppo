@@ -1,7 +1,6 @@
 """
-Phase 3: Curriculum Learning Training Script
-
-Progressive training from toy to production scale using PPO.
+Phase 3 Curriculum Training Script
+Implements 16-stage progressive training for PPO scheduler
 """
 
 import os
@@ -9,25 +8,30 @@ import sys
 import yaml
 import json
 import logging
-import argparse
+import numpy as np
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, List, Tuple, Optional, Any
+
+# Add parent directory to path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import torch
 import numpy as np
-import gymnasium as gym
 from stable_baselines3 import PPO
-from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 from stable_baselines3.common.callbacks import (
-    BaseCallback, EvalCallback, CheckpointCallback, CallbackList
+    BaseCallback,
+    EvalCallback,
+    CheckpointCallback,
+    CallbackList
 )
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
-
-# Add parent directory to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from stable_baselines3.common.logger import configure
 
 from environments.curriculum_env import CurriculumSchedulingEnv
+# For now, we'll use MlpPolicy until we implement the transformer policy
+# from src.model.ppo_scheduler import PPOScheduler
+# from src.model.transformer_policy import TransformerSchedulingPolicy
 
 # Configure logging
 logging.basicConfig(
@@ -38,358 +42,407 @@ logger = logging.getLogger(__name__)
 
 
 class CurriculumTrainingCallback(BaseCallback):
-    """Custom callback for curriculum training progress."""
+    """Custom callback for curriculum training monitoring."""
     
     def __init__(self, stage_name: str, verbose: int = 0):
         super().__init__(verbose)
         self.stage_name = stage_name
         self.episode_rewards = []
-        self.episode_lengths = []
         self.episode_metrics = []
+        self.best_reward = -float('inf')
+        self.best_utilization = 0.0
         
     def _on_step(self) -> bool:
-        # Check for episode end
+        # Track episode completions
         if self.locals.get('dones')[0]:
-            info = self.locals['infos'][0]
-            
-            # Record episode metrics
-            if 'episode' in info:
-                self.episode_rewards.append(info['episode']['r'])
-                self.episode_lengths.append(info['episode']['l'])
+            info = self.locals.get('infos')[0]
+            if 'final_metrics' in info:
+                metrics = info['final_metrics']
+                reward = self.locals.get('rewards')[0]
                 
-            if 'episode_metrics' in info:
-                self.episode_metrics.append(info['episode_metrics'])
+                self.episode_rewards.append(reward)
+                self.episode_metrics.append(metrics)
                 
-                # Log metrics
-                metrics = info['episode_metrics']
-                logger.info(
-                    f"[{self.stage_name}] Episode {len(self.episode_rewards)} - "
-                    f"Reward: {self.episode_rewards[-1]:.2f}, "
-                    f"Completed: {metrics['jobs_completed']}, "
-                    f"Late: {metrics['jobs_late']}, "
-                    f"Utilization: {metrics['machine_utilization']:.1%}"
-                )
+                # Update best metrics
+                utilization = metrics.get('machine_utilization', 0)
+                if reward > self.best_reward:
+                    self.best_reward = reward
+                if utilization > self.best_utilization:
+                    self.best_utilization = utilization
                 
-        return True
+                # Log progress
+                if len(self.episode_rewards) % 10 == 0:
+                    avg_reward = np.mean(self.episode_rewards[-10:])
+                    avg_utilization = np.mean([m['machine_utilization'] for m in self.episode_metrics[-10:]])
+                    avg_jobs_completed = np.mean([m['jobs_completed'] for m in self.episode_metrics[-10:]])
+                    avg_late = np.mean([m['jobs_late'] for m in self.episode_metrics[-10:]])
+                    
+                    logger.info(
+                        f"[{self.stage_name}] Episodes: {len(self.episode_rewards)}, "
+                        f"Avg Reward: {avg_reward:.2f}, Best: {self.best_reward:.2f}, "
+                        f"Util: {avg_utilization:.1%}, Jobs: {avg_jobs_completed:.1f}, "
+                        f"Late: {avg_late:.1f}"
+                    )
         
-    def _on_training_end(self) -> None:
-        # Summary statistics
-        if self.episode_rewards:
-            logger.info(
-                f"[{self.stage_name}] Training Summary - "
-                f"Episodes: {len(self.episode_rewards)}, "
-                f"Avg Reward: {np.mean(self.episode_rewards):.2f}, "
-                f"Max Reward: {np.max(self.episode_rewards):.2f}"
-            )
+        return True
 
 
 class CurriculumTrainer:
-    """Manages curriculum learning training process."""
+    """Manages the 16-stage curriculum training process."""
     
     def __init__(self, config_path: str):
         """Initialize trainer with configuration."""
         # Load configuration
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
-            
+        
         # Setup directories
         self.checkpoint_dir = self.config['training']['checkpoint_dir']
-        self.tensorboard_dir = self.config['training']['tensorboard_log']
+        self.log_dir = self.config['training']['log_dir']
         os.makedirs(self.checkpoint_dir, exist_ok=True)
-        os.makedirs(self.tensorboard_dir, exist_ok=True)
+        os.makedirs(self.log_dir, exist_ok=True)
         
-        # Device configuration
-        if self.config['training']['device'] == 'mps' and torch.backends.mps.is_available():
-            logger.info("Using MPS (Metal Performance Shaders) for training")
-            self.device = 'mps'
-        else:
-            self.device = 'cpu'
-            logger.warning("MPS not available, using CPU")
-            
-        # Snapshot paths
-        self.snapshot_dir = 'phase3/snapshots'
-        self.snapshot_paths = {
-            'snapshot_normal': os.path.join(self.snapshot_dir, 'snapshot_normal.json'),
-            'snapshot_rush': os.path.join(self.snapshot_dir, 'snapshot_rush.json'),
-            'snapshot_heavy': os.path.join(self.snapshot_dir, 'snapshot_heavy.json'),
-            'snapshot_bottleneck': os.path.join(self.snapshot_dir, 'snapshot_bottleneck.json'),
-            'snapshot_multi_heavy': os.path.join(self.snapshot_dir, 'snapshot_multi_heavy.json'),
-            'edge_same_machine': os.path.join(self.snapshot_dir, 'edge_case_same_machine.json'),
-            'edge_cascading': os.path.join(self.snapshot_dir, 'edge_case_cascading.json'),
-            'edge_conflicts': os.path.join(self.snapshot_dir, 'edge_case_conflicts.json'),
-            'edge_multi_complex': os.path.join(self.snapshot_dir, 'edge_case_multi_complex.json')
-        }
-        
-        # Training stages in order
-        self.stages = [
-            # Foundation
-            'toy_easy', 'toy_normal', 'toy_hard', 'toy_multi',
-            # Strategy
-            'small_balanced', 'small_rush', 'small_bottleneck', 'small_complex',
-            # Scale
-            'medium_normal', 'medium_stress', 'large_intro', 'large_advanced',
-            # Production
-            'production_warmup', 'production_rush', 'production_heavy', 'production_expert'
-        ]
-        
-        # Current model (persists across stages)
-        self.model = None
+        # Initialize stage tracking
         self.current_stage_idx = 0
+        self.stages = self.config['curriculum']['stages']
+        self.stage_history = []
         
-    def create_env(self, stage_name: str, eval_mode: bool = False) -> gym.Env:
-        """Create environment for given stage."""
-        stage_config = self.config[stage_name]
+        # Model and environment
+        self.model = None
+        self.env = None
         
-        # Determine snapshot path
-        snapshot_path = None
-        data_source = stage_config['data_source']
-        
-        if data_source != 'synthetic':
-            # Map data source to snapshot
-            if 'rush' in data_source:
-                snapshot_path = self.snapshot_paths['snapshot_rush']
-            elif 'heavy' in data_source:
-                snapshot_path = self.snapshot_paths['snapshot_heavy']
-            elif 'bottleneck' in data_source:
-                snapshot_path = self.snapshot_paths['snapshot_bottleneck']
-            elif 'edge_same_machine' in data_source:
-                snapshot_path = self.snapshot_paths['edge_same_machine']
-            elif 'edge_cascading' in data_source:
-                snapshot_path = self.snapshot_paths['edge_cascading']
-            elif 'mixed' in data_source:
-                # For expert stage, randomly select snapshots
-                snapshot_path = np.random.choice(list(self.snapshot_paths.values()))
-            else:
-                snapshot_path = self.snapshot_paths['snapshot_normal']
-                
-        # Create environment
-        env = CurriculumSchedulingEnv(
-            stage_config=stage_config,
-            snapshot_path=snapshot_path,
-            reward_profile='balanced',  # Can vary this too
-            seed=42 if eval_mode else None
-        )
-        
-        # Wrap with Monitor
-        env = Monitor(env)
-        
-        return env
-        
-    def train_stage(self, stage_name: str):
-        """Train a single curriculum stage."""
-        logger.info(f"\n{'='*60}")
-        logger.info(f"Starting Stage: {stage_name}")
-        logger.info(f"{'='*60}")
-        
-        stage_config = self.config[stage_name]
-        
-        # Create training environments
-        n_envs = self.config['training']['n_envs']
-        
+    def create_env(self, stage_config: Dict[str, Any], seed: int = 42) -> DummyVecEnv:
+        """Create environment for a specific stage."""
         def make_env():
-            return self.create_env(stage_name)
-            
-        # Vectorized environments
-        train_env = make_vec_env(
-            make_env,
-            n_envs=n_envs,
-            seed=42
-        )
+            env = CurriculumSchedulingEnv(
+                stage_config=stage_config,
+                data_source="synthetic",
+                reward_profile=stage_config.get('reward_profile', 'learning'),
+                seed=seed
+            )
+            env = Monitor(env)
+            return env
         
-        # Normalize observations and rewards
-        train_env = VecNormalize(
-            train_env,
+        # Create vectorized environment
+        env = DummyVecEnv([make_env])
+        
+        # Add normalization
+        env = VecNormalize(
+            env,
             norm_obs=True,
             norm_reward=True,
-            clip_obs=10.0
+            clip_obs=10.0,
+            clip_reward=10.0
         )
         
-        # Always create new model for each stage (observation space changes)
-        logger.info("Creating new PPO model for stage")
+        return env
+    
+    def create_model(self, env: VecNormalize, stage_config: Dict[str, Any]) -> PPO:
+        """Create or update PPO model."""
+        # Get hyperparameters
+        hyperparams = self.config['hyperparameters'].copy()
         
-        self.model = PPO(
-            'MlpPolicy',
-            train_env,
-            learning_rate=float(stage_config['learning_rate']),
-            n_steps=int(stage_config['n_steps']),
-            batch_size=int(stage_config['batch_size']),
-            n_epochs=10,
-            gamma=self.config['training']['gamma'],
-            gae_lambda=self.config['training']['gae_lambda'],
-            clip_range=self.config['training']['clip_range'],
-            vf_coef=self.config['training']['vf_coef'],
-            ent_coef=self.config['training']['ent_coef'],
-            max_grad_norm=self.config['training']['max_grad_norm'],
-            tensorboard_log=os.path.join(self.tensorboard_dir, stage_name),
-            device=self.device,
-            verbose=self.config['training']['verbose']
+        # Stage-specific adjustments
+        if 'hyperparameter_overrides' in stage_config:
+            hyperparams.update(stage_config['hyperparameter_overrides'])
+        
+        # Adjust entropy coefficient for exploration
+        if stage_config.get('name', '').startswith('toy'):
+            hyperparams['ent_coef'] = 0.05  # More exploration for toy stages
+        
+        # For curriculum learning, we need to create a new model for each stage
+        # due to changing observation/action spaces
+        logger.info(f"Creating new PPO model with hyperparameters: {hyperparams}")
+        
+        model = PPO(
+            policy="MlpPolicy",  # Using MLP for now
+            env=env,
+            learning_rate=float(hyperparams['learning_rate']),
+            n_steps=hyperparams['n_steps'],
+            batch_size=hyperparams['batch_size'],
+            n_epochs=hyperparams['n_epochs'],
+            gamma=hyperparams['gamma'],
+            gae_lambda=hyperparams['gae_lambda'],
+            clip_range=hyperparams['clip_range'],
+            ent_coef=hyperparams['ent_coef'],
+            vf_coef=hyperparams['vf_coef'],
+            max_grad_norm=hyperparams['max_grad_norm'],
+            tensorboard_log=os.path.join(self.log_dir, 'tensorboard'),
+            # policy_kwargs={
+            #     'transformer_config': self.config['model']['transformer_config']
+            # },
+            verbose=1
         )
-            
-        # Callbacks
+        
+        return model
+    
+    def train_stage(self, stage_idx: int) -> Dict[str, Any]:
+        """Train on a single curriculum stage."""
+        stage_config = self.stages[stage_idx]
+        stage_name = stage_config['name']
+        timesteps = stage_config.get('timesteps', 100000)
+        
+        logger.info(f"\n{'='*60}")
+        logger.info(f"Starting Stage {stage_idx + 1}/{len(self.stages)}: {stage_name}")
+        logger.info(f"Jobs: {stage_config['jobs']}, Machines: {stage_config['machines']}")
+        logger.info(f"Description: {stage_config['description']}")
+        logger.info(f"Training for {timesteps:,} timesteps")
+        logger.info(f"{'='*60}\n")
+        
+        # Create environment
+        self.env = self.create_env(stage_config)
+        
+        # Create or update model
+        self.model = self.create_model(self.env, stage_config)
+        
+        # Setup callbacks
         callbacks = []
         
-        # Custom progress callback
-        progress_callback = CurriculumTrainingCallback(stage_name)
-        callbacks.append(progress_callback)
+        # Custom monitoring callback
+        monitor_callback = CurriculumTrainingCallback(stage_name)
+        callbacks.append(monitor_callback)
         
         # Checkpoint callback
         checkpoint_callback = CheckpointCallback(
-            save_freq=self.config['training']['checkpoint_freq'],
+            save_freq=10000,
             save_path=os.path.join(self.checkpoint_dir, stage_name),
-            name_prefix=f'ppo_{stage_name}'
+            name_prefix=f"ppo_{stage_name}"
         )
         callbacks.append(checkpoint_callback)
         
         # Evaluation callback
-        eval_env = self.create_env(stage_name, eval_mode=True)
-        # Wrap eval env in VecNormalize to match training env
-        from stable_baselines3.common.vec_env import DummyVecEnv
-        eval_env = DummyVecEnv([lambda: eval_env])
-        eval_env = VecNormalize(eval_env, norm_obs=True, norm_reward=False, clip_obs=10.0)
-        
+        eval_env = self.create_env(stage_config, seed=123)
         eval_callback = EvalCallback(
             eval_env,
-            n_eval_episodes=self.config['training']['n_eval_episodes'],
-            eval_freq=self.config['training']['eval_freq'],
-            best_model_save_path=os.path.join(self.checkpoint_dir, stage_name),
-            deterministic=True
+            best_model_save_path=os.path.join(self.checkpoint_dir, stage_name, 'best'),
+            log_path=os.path.join(self.log_dir, stage_name),
+            eval_freq=5000,
+            deterministic=True,
+            render=False
         )
         callbacks.append(eval_callback)
         
-        # Combine callbacks
-        callback_list = CallbackList(callbacks)
-        
         # Train
-        logger.info(f"Training for {stage_config['timesteps']} timesteps")
-        
+        start_time = datetime.now()
         self.model.learn(
-            total_timesteps=stage_config['timesteps'],
-            callback=callback_list,
-            reset_num_timesteps=False,  # Continue from previous stage
-            progress_bar=True
+            total_timesteps=timesteps,
+            callback=CallbackList(callbacks),
+            tb_log_name=stage_name
         )
+        training_time = (datetime.now() - start_time).total_seconds()
         
-        # Save final model for stage
-        model_path = os.path.join(self.checkpoint_dir, f'{stage_name}_final.zip')
+        # Save final model
+        model_path = os.path.join(self.checkpoint_dir, stage_name, f"{stage_name}_final.zip")
         self.model.save(model_path)
         
-        # Save normalization statistics
-        vec_norm_path = os.path.join(self.checkpoint_dir, f'{stage_name}_vec_normalize.pkl')
-        train_env.save(vec_norm_path)
+        # Save normalization stats
+        norm_path = os.path.join(self.checkpoint_dir, stage_name, f"{stage_name}_vecnorm.pkl")
+        self.env.save(norm_path)
         
-        logger.info(f"Stage {stage_name} completed!")
-        
-        # Cleanup
-        train_env.close()
-        eval_env.close()
-        
-    def train_curriculum(self, start_stage: Optional[str] = None):
-        """Train through entire curriculum."""
-        # Find starting point
-        if start_stage:
-            try:
-                self.current_stage_idx = self.stages.index(start_stage)
-                logger.info(f"Starting from stage: {start_stage}")
-                
-                # Load previous model if not first stage
-                if self.current_stage_idx > 0:
-                    prev_stage = self.stages[self.current_stage_idx - 1]
-                    model_path = os.path.join(self.checkpoint_dir, f'{prev_stage}_final.zip')
-                    
-                    if os.path.exists(model_path):
-                        logger.info(f"Loading model from previous stage: {prev_stage}")
-                        self.model = PPO.load(model_path, device=self.device)
-                        
-            except ValueError:
-                logger.error(f"Unknown stage: {start_stage}")
-                return
-                
-        # Train through stages
-        for stage_idx in range(self.current_stage_idx, len(self.stages)):
-            stage_name = self.stages[stage_idx]
-            
-            try:
-                self.train_stage(stage_name)
-                self.current_stage_idx = stage_idx + 1
-                
-                # Save progress
-                self.save_training_state()
-                
-            except Exception as e:
-                logger.error(f"Error in stage {stage_name}: {e}")
-                raise
-                
-        logger.info("\n" + "="*60)
-        logger.info("CURRICULUM TRAINING COMPLETED!")
-        logger.info("="*60)
-        
-    def save_training_state(self):
-        """Save current training state."""
-        state = {
-            'current_stage_idx': self.current_stage_idx,
-            'completed_stages': self.stages[:self.current_stage_idx],
-            'timestamp': datetime.now().isoformat()
+        # Compile stage results
+        results = {
+            'stage_name': stage_name,
+            'stage_idx': stage_idx,
+            'timesteps': timesteps,
+            'training_time': training_time,
+            'best_reward': monitor_callback.best_reward,
+            'best_utilization': monitor_callback.best_utilization,
+            'final_metrics': monitor_callback.episode_metrics[-1] if monitor_callback.episode_metrics else {},
+            'model_path': model_path,
+            'norm_path': norm_path
         }
         
-        state_path = os.path.join(self.checkpoint_dir, 'training_state.json')
-        with open(state_path, 'w') as f:
-            json.dump(state, f, indent=2)
+        # Check performance targets
+        if 'performance_targets' in stage_config:
+            targets = stage_config['performance_targets']
+            passed = True
             
-    def load_training_state(self) -> Optional[Dict[str, Any]]:
-        """Load previous training state."""
-        state_path = os.path.join(self.checkpoint_dir, 'training_state.json')
-        
-        if os.path.exists(state_path):
-            with open(state_path, 'r') as f:
-                return json.load(f)
+            if 'min_utilization' in targets:
+                if results['best_utilization'] < targets['min_utilization']:
+                    logger.warning(
+                        f"Failed utilization target: {results['best_utilization']:.1%} < "
+                        f"{targets['min_utilization']:.1%}"
+                    )
+                    passed = False
+            
+            if 'max_late_ratio' in targets and results['final_metrics']:
+                jobs_completed = results['final_metrics'].get('jobs_completed', 1)
+                jobs_late = results['final_metrics'].get('jobs_late', 0)
+                late_ratio = jobs_late / max(1, jobs_completed)
                 
-        return None
+                if late_ratio > targets['max_late_ratio']:
+                    logger.warning(
+                        f"Failed late ratio target: {late_ratio:.1%} > "
+                        f"{targets['max_late_ratio']:.1%}"
+                    )
+                    passed = False
+            
+            results['passed_targets'] = passed
+        else:
+            results['passed_targets'] = True
+        
+        logger.info(f"\nStage {stage_name} completed!")
+        logger.info(f"Best reward: {results['best_reward']:.2f}")
+        logger.info(f"Best utilization: {results['best_utilization']:.1%}")
+        logger.info(f"Training time: {training_time/60:.1f} minutes")
+        
+        return results
+    
+    def run_curriculum(self, start_stage: int = 0):
+        """Run the full curriculum training."""
+        logger.info("\n" + "="*80)
+        logger.info("STARTING 16-STAGE CURRICULUM TRAINING")
+        logger.info("="*80 + "\n")
+        
+        # Training loop
+        for stage_idx in range(start_stage, len(self.stages)):
+            self.current_stage_idx = stage_idx
+            
+            # Train stage
+            results = self.train_stage(stage_idx)
+            self.stage_history.append(results)
+            
+            # Save progress
+            progress_path = os.path.join(self.checkpoint_dir, 'curriculum_progress.json')
+            # Convert numpy types to Python types for JSON serialization
+            serializable_history = []
+            for result in self.stage_history:
+                serializable_result = {}
+                for k, v in result.items():
+                    if isinstance(v, (np.floating, np.integer)):
+                        serializable_result[k] = float(v)
+                    elif isinstance(v, dict):
+                        serializable_result[k] = {
+                            k2: float(v2) if isinstance(v2, (np.floating, np.integer)) else v2
+                            for k2, v2 in v.items()
+                        }
+                    else:
+                        serializable_result[k] = v
+                serializable_history.append(serializable_result)
+            
+            with open(progress_path, 'w') as f:
+                json.dump({
+                    'current_stage': stage_idx + 1,
+                    'total_stages': len(self.stages),
+                    'stage_history': serializable_history
+                }, f, indent=2)
+            
+            # Check if we should continue
+            if not results['passed_targets']:
+                logger.warning(f"\nStage {results['stage_name']} did not meet performance targets.")
+                logger.warning("Consider adjusting hyperparameters or training longer.")
+                
+                # Optional: retry logic here
+                retry = input("Retry this stage? (y/n): ").lower() == 'y'
+                if retry:
+                    stage_idx -= 1  # Retry same stage
+                    continue
+        
+        logger.info("\n" + "="*80)
+        logger.info("CURRICULUM TRAINING COMPLETE!")
+        logger.info("="*80 + "\n")
+        
+        # Summary report
+        self.generate_summary_report()
+    
+    def generate_summary_report(self):
+        """Generate a summary report of the training."""
+        report_path = os.path.join(self.checkpoint_dir, 'training_summary.txt')
+        
+        with open(report_path, 'w') as f:
+            f.write("CURRICULUM TRAINING SUMMARY\n")
+            f.write("=" * 60 + "\n\n")
+            
+            total_time = sum(r['training_time'] for r in self.stage_history)
+            f.write(f"Total training time: {total_time/3600:.1f} hours\n")
+            f.write(f"Stages completed: {len(self.stage_history)}/{len(self.stages)}\n\n")
+            
+            f.write("Stage Results:\n")
+            f.write("-" * 60 + "\n")
+            
+            for result in self.stage_history:
+                f.write(f"\n{result['stage_name']}:\n")
+                f.write(f"  Best reward: {result['best_reward']:.2f}\n")
+                f.write(f"  Best utilization: {result['best_utilization']:.1%}\n")
+                f.write(f"  Training time: {result['training_time']/60:.1f} minutes\n")
+                f.write(f"  Passed targets: {'Yes' if result['passed_targets'] else 'No'}\n")
+                
+                if result['final_metrics']:
+                    metrics = result['final_metrics']
+                    f.write(f"  Jobs completed: {metrics.get('jobs_completed', 0)}/{result['stage_name'].split()[1]}\n")
+                    f.write(f"  Jobs late: {metrics.get('jobs_late', 0)}\n")
+            
+            f.write("\n" + "=" * 60 + "\n")
+            f.write("Training complete! Model ready for deployment.\n")
+        
+        logger.info(f"Summary report saved to: {report_path}")
+        
+        # Also save as JSON for easier parsing
+        json_report_path = os.path.join(self.checkpoint_dir, 'training_summary.json')
+        with open(json_report_path, 'w') as f:
+            json.dump({
+                'total_training_time_hours': total_time / 3600,
+                'stages_completed': len(self.stage_history),
+                'total_stages': len(self.stages),
+                'stage_results': self.stage_history,
+                'final_model_path': self.stage_history[-1]['model_path'] if self.stage_history else None
+            }, f, indent=2)
 
 
 def main():
-    """Main training function."""
-    parser = argparse.ArgumentParser(description='Phase 3 Curriculum Training')
+    """Main training entry point."""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Run Phase 3 Curriculum Training")
     parser.add_argument(
         '--config',
         type=str,
-        default='configs/phase3_curriculum_config.yaml',
-        help='Path to curriculum configuration'
+        default='/Users/carrickcheah/Project/ppo/app_2/configs/phase3_curriculum_config.yaml',
+        help='Path to curriculum config file'
     )
     parser.add_argument(
         '--start-stage',
-        type=str,
-        default=None,
-        help='Stage to start/resume from'
+        type=int,
+        default=0,
+        help='Stage to start from (0-based index)'
     )
     parser.add_argument(
-        '--single-stage',
-        type=str,
-        default=None,
-        help='Train only a single stage'
+        '--resume',
+        action='store_true',
+        help='Resume from last checkpoint'
     )
     
     args = parser.parse_args()
     
-    # Initialize trainer
+    # Check if config exists
+    if not os.path.exists(args.config):
+        logger.error(f"Config file not found: {args.config}")
+        return
+    
+    # Create trainer
     trainer = CurriculumTrainer(args.config)
     
-    # Check for previous state
-    if not args.start_stage:
-        state = trainer.load_training_state()
-        if state:
-            logger.info(f"Found previous training state: {state['completed_stages']}")
-            # Resume from next stage
-            if state['current_stage_idx'] < len(trainer.stages):
-                args.start_stage = trainer.stages[state['current_stage_idx']]
-                
-    # Train
-    if args.single_stage:
-        # Train single stage only
-        trainer.train_stage(args.single_stage)
-    else:
-        # Full curriculum
-        trainer.train_curriculum(start_stage=args.start_stage)
+    # Handle resume
+    start_stage = args.start_stage
+    if args.resume:
+        progress_path = os.path.join(trainer.checkpoint_dir, 'curriculum_progress.json')
+        if os.path.exists(progress_path):
+            with open(progress_path, 'r') as f:
+                progress = json.load(f)
+                start_stage = progress['current_stage']
+                trainer.stage_history = progress.get('stage_history', [])
+                logger.info(f"Resuming from stage {start_stage + 1}")
+    
+    # Run training
+    try:
+        trainer.run_curriculum(start_stage=start_stage)
+    except KeyboardInterrupt:
+        logger.info("\nTraining interrupted by user.")
+        logger.info(f"Progress saved. Resume with --resume --start-stage {trainer.current_stage_idx}")
+    except Exception as e:
+        logger.error(f"Training failed with error: {e}")
+        raise
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
