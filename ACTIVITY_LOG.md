@@ -337,3 +337,54 @@
   - Increase entropy coefficient to 0.05+ for exploration
   - Create "rush_order" reward profile that tolerates some lateness
   - Fix environment configuration for consistent observation spaces
+
+### 2025-07-25 - Phase 3 Complete: Curriculum Learning with Real Production Data
+- **Critical Data Requirement Enforcement**:
+  - User strongly emphasized: "Why snapshot u not use real data? i mean real job name, real machine, why?"
+  - Discovered Phase 3 was using synthetic data instead of real production data
+  - User deleted all Phase 3 files to enforce restart with real data
+  - Updated CLAUDE.md with MANDATORY real data requirements
+- **Phase 3 Complete Reimplementation**:
+  - Created `ingest_real_data.py` to fetch 100% real production data from MariaDB:
+    - Fetched 109 real jobs with actual job IDs (JOAW, JOST, JOTP prefixes)
+    - Retrieved 145 real machines with actual names (OV01, ALDG, BDS01, etc.)
+    - Created 16 curriculum stage snapshots using ONLY real data
+    - Saved all data to `/app_2/data/` directory as required
+  - Implemented `curriculum_env_real.py` with all critical fixes:
+    - Machine ID mapping (0-based actions to 1-based database IDs)
+    - Fixed info dict key: 'action_valid' not 'valid_action'
+    - Improved reward structure with completion bonuses (+50.0)
+    - Action bonus (+5.0) for taking any valid action
+    - Handles multi-machine jobs correctly
+  - Created comprehensive `train_curriculum.py`:
+    - 16-stage progressive training from toy to production
+    - Performance gates between stages
+    - Checkpoint saving and resuming capability
+    - Tensorboard logging for monitoring
+    - Test mode for quick validation
+  - Built `evaluate_and_visualize.py` for assessment:
+    - Generates Gantt charts showing job schedules
+    - Calculates utilization, completion rates, makespan
+    - Creates training progress visualizations
+    - Saves all outputs to `/app_2/visualizations/phase3/`
+- **Key Technical Achievements**:
+  - ALL data now from real MariaDB production database
+  - No synthetic or dummy data anywhere in Phase 3
+  - Fixed critical reward issues preventing "do nothing" behavior
+  - Successfully tested all components with real data validation
+  - Generated first Gantt chart with real job visualization
+- **Testing Results**:
+  - Environment test passed for toy_easy, small_rush, medium_normal
+  - All stages confirmed using real production job IDs
+  - Training script tested successfully (1000 timesteps)
+  - Evaluation generated Gantt chart with 36.7% utilization
+- **Directory Organization**:
+  - Phase 3 structure properly organized in `/app_2/phase3/`
+  - Data snapshots in `/app_2/data/` (not phase3/data)
+  - Visualizations in `/app_2/visualizations/phase3/`
+  - Comprehensive README.md documenting implementation
+- **Current Status**:
+  - Phase 3 implementation 100% complete with real data
+  - Ready for full 16-stage curriculum training
+  - All critical issues resolved (machine IDs, rewards, data)
+  - System validated and tested with production data
