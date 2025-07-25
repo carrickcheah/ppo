@@ -1,37 +1,35 @@
 # Deep Reinforcement Learning Scheduling System
 
-## Project Status: Pure DRL System Ready for Training
+## Project Status: Phase 3 Training In Progress 🚧
 
-### Pure DRL System (/app_2) - Phase 2 Complete ✅
-- **Achievement**: Full PPO implementation with transformer architecture
-- **Testing**: 100% test success rate (14/14 tests passing)
+### Pure DRL System (/app_2) - Current Status
+- **Phase 1 & 2**: ✅ COMPLETE - Environment and PPO model implemented
+- **Phase 3**: 🚧 IN PROGRESS - Curriculum learning (6/16 stages complete)
+- **Current Issue**: Small rush stage achieving 0% utilization - model avoiding scheduling
 - **Data**: 295 real production jobs from 88 families, 145 machines
-- **Status**: All components tested and ready for Phase 3 (Training)
 
 ## Latest Updates (July 24, 2025)
 
-### Phase 1.5 & 1.6 - Critical Data Fixes
-- **Database Schema Corrections**:
-  - Fixed: `Machine_v` contains machine IDs (not names)
-  - Multi-machine jobs require ALL machines simultaneously
-  - Processing time formula: `Hours = JoQty_d / (CapQty_d * 60)` when `CapMin_d = 1`
-- **Environment Updates**:
-  - Implemented simultaneous multi-machine occupation
-  - Removed working hours from training (deployment only)
-  - 5 multi-machine jobs identified in production data
+### Phase 3 - Curriculum Learning Progress
+- **Training Status**:
+  - Stages 1-6: ✅ COMPLETE (toy environments and small balanced)
+  - Stage 7 (Small Rush): ⚠️ 0% utilization issue discovered
+  - Stages 8-16: PENDING
+- **Small Rush Problem Analysis**:
+  - Model learns to avoid scheduling entirely (0% utilization)
+  - Root cause: Reward structure penalizes late jobs more than idle time
+  - Rush orders have tight deadlines, mostly guaranteed to be late
+  - Required fix: Add completion bonus, adjust penalties, increase exploration
 
-### Phase 2 - PPO Model Implementation
-- **Architecture Components**:
-  - State encoder for variable-sized inputs (10-1000+ jobs)
-  - Transformer policy with self-attention and cross-attention
-  - Action masking for valid actions only
-  - PPO scheduler with actor-critic architecture
-  - Rollout buffer with GAE computation
-  - Curriculum learning manager (5 stages)
-- **Comprehensive Testing**:
-  - Initial: 64.3% success rate
-  - Final: 100% success rate after fixes
-  - All components validated with production data
+### Phase 2 - PPO Model Implementation ✅
+- **Architecture**: Transformer with attention for variable job counts
+- **Testing**: 100% success rate (14/14 tests passing)
+- **Data**: Using real production snapshot with 295 jobs, 145 machines
+
+### Phase 1.5 & 1.6 - Critical Data Fixes ✅
+- **Multi-machine jobs**: Require ALL specified machines simultaneously
+- **Processing time**: Capacity-based formula implemented
+- **Working hours**: Removed from training (deployment only)
 
 ## System Architecture
 

@@ -4,6 +4,8 @@
 
 The PPO scheduling system uses deep reinforcement learning to optimize production scheduling. This document outlines the complete workflow from data ingestion to schedule visualization.
 
+**Current Status**: Phase 3 Training in progress. Addressing 0% utilization issue in small_rush stage where model learned to avoid scheduling to prevent penalties.
+
 ## Pure DRL Scheduling Workflow (Updated Architecture)
 
 ```mermaid
@@ -143,13 +145,23 @@ Policy Head → Action probabilities
 Value Head → State value estimate
 ```
 
-### Phase 4: Curriculum Learning
+### Phase 4: Curriculum Learning (16 Stages)
 ```
-Stage 1: 10 jobs, 5 machines → Learn basic rules
-Stage 2: 50 jobs, 20 machines → Learn strategies
-Stage 3: 200 jobs, 50 machines → Learn scaling
-Stage 4: 500 jobs, 100 machines → Near production
-Stage 5: 295 jobs, 145 machines → Full production scale
+Foundation Training (Stages 1-4): ✅ COMPLETE
+- Toy environments: 5-20 jobs, 3-10 machines
+- Learned: sequence rules, deadlines, priorities, multi-machine
+
+Strategy Development (Stages 5-8): 🚧 IN PROGRESS
+- Small scale: 30-50 jobs, 10-30 machines
+- Stage 6 (Small Rush): ⚠️ 0% utilization issue - model avoids scheduling
+- Issue: Reward structure penalizes late > idle, rush orders mostly late
+
+Scale Training (Stages 9-12): PENDING
+- Medium scale: 100-400 jobs, 40-100 machines
+
+Production Mastery (Stages 13-16): PENDING
+- Full scale: 295-500 jobs, 145 machines
+- Normal, rush, heavy, and mixed scenarios
 ```
 
 ## Deployment Workflow

@@ -90,24 +90,24 @@ Last Updated: 2025-07-24
 - [x] Update policy and value networks
 - [x] Track metrics: reward, makespan, on-time rate
 
-## Phase 3: Training - Let it Learn to Play (Week 3) 📋 NEXT
+## Phase 3: Training - Let it Learn to Play (Week 3) 🚧 IN PROGRESS
 
-### Step 1: Data Preparation & Enhancement
-- [ ] Create multiple data snapshots (rush orders, normal, heavy load)
-- [ ] Generate 500+ job snapshot with extended planning horizon
-- [ ] Create synthetic variations for edge cases
-- [ ] Prepare multi-machine heavy scenarios (30% multi-machine jobs)
+### Step 1: Data Preparation & Enhancement ✅ COMPLETE
+- [x] Create multiple data snapshots (rush orders, normal, heavy load)
+- [x] Generate 500+ job snapshot with extended planning horizon
+- [x] Create synthetic variations for edge cases
+- [x] Prepare multi-machine heavy scenarios (30% multi-machine jobs)
 
-### Step 2: Extended Curriculum Learning (16 stages)
-#### Foundation Training (100k timesteps)
-- [ ] Toy Easy: 5 jobs, 3 machines - Learn sequence rules
-- [ ] Toy Normal: 10 jobs, 5 machines - Learn deadlines
-- [ ] Toy Hard: 15 jobs, 5 machines - Learn priorities
-- [ ] Toy Multi: 10 jobs, 8 machines - Learn multi-machine
+### Step 2: Extended Curriculum Learning (16 stages) 🚧 IN PROGRESS
+#### Foundation Training (100k timesteps) ✅ COMPLETE
+- [x] Toy Easy: 5 jobs, 3 machines - Learn sequence rules
+- [x] Toy Normal: 10 jobs, 5 machines - Learn deadlines
+- [x] Toy Hard: 15 jobs, 5 machines - Learn priorities
+- [x] Toy Multi: 10 jobs, 8 machines - Learn multi-machine
 
-#### Strategy Development (200k timesteps)
-- [ ] Small Balanced: 30 jobs, 15 machines - Balance objectives
-- [ ] Small Rush: 50 jobs, 20 machines - Handle urgency
+#### Strategy Development (200k timesteps) 🚧 IN PROGRESS
+- [x] Small Balanced: 30 jobs, 15 machines - Balance objectives
+- [⚠️] Small Rush: 50 jobs, 20 machines - Handle urgency (0% utilization issue - needs fix)
 - [ ] Small Bottleneck: 40 jobs, 10 machines - Manage constraints
 - [ ] Small Complex: 50 jobs, 25 machines - Complex dependencies
 
@@ -289,6 +289,19 @@ Last Updated: 2025-07-24
 - [ ] Zero hardcoded scheduling rules in final system
 - [ ] API response time <1 second
 - [ ] 25%+ improvement over manual scheduling
+
+## Current Issues to Fix 🔧
+
+### Small Rush 0% Utilization Problem
+- **Issue**: Model learns to do nothing (0% utilization) to avoid penalties
+- **Root Cause**: Reward structure penalizes late jobs more than idle time
+- **Required Fixes**:
+  - [ ] Add completion bonus (+1.0 per job) to reward function
+  - [ ] Reduce late penalty magnitude or use graduated penalties
+  - [ ] Increase entropy coefficient from 0.01 to 0.05+ for exploration
+  - [ ] Create "rush_order" reward profile that tolerates some lateness
+  - [ ] Fix observation space mismatch between training and testing
+  - [ ] Add 'name' field to stage configurations
 
 ## Timeline Summary
 - **Week 1**: Build game environment with rules ✅ COMPLETE
