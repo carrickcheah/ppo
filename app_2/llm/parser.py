@@ -230,7 +230,7 @@ class ScheduleParser:
         if not machine_matches:
             return None
         
-        machines = [int(m.strip()) for m in machine_matches[0].split(',')]
+        machines = [int(m.strip()) for m in machine_matches[0].split(',') if m.strip()]
         
         # Find times
         time_matches = self.patterns['full_datetime'].findall(line)
@@ -267,6 +267,7 @@ class ScheduleParser:
         
     def _parse_job_id(self, job_id: str) -> Tuple[str, int, int]:
         """Parse job ID into components."""
+        # First try the pattern matcher
         match = self.patterns['job_id_pattern'].match(job_id)
         if match:
             family_id = match.group(1) + match.group(2)
@@ -274,17 +275,29 @@ class ScheduleParser:
             total_sequences = int(match.group(4))
             return family_id, sequence, total_sequences
         
-        # Fallback parsing
+        # Fallback parsing for different formats
         parts = job_id.split('-')
         if len(parts) >= 2:
+            # Family ID is usually the first part
             family_id = parts[0]
-            if '/' in parts[-1]:
-                seq_parts = parts[-1].split('/')
-                sequence = int(seq_parts[0].split('-')[-1]) if '-' in seq_parts[0] else int(seq_parts[0])
+            
+            # Look for sequence in the last part
+            last_part = parts[-1]
+            if '/' in last_part:
+                seq_parts = last_part.split('/')
+                # Extract sequence number (might have additional text)
+                seq_text = seq_parts[0]
+                # Remove any non-digit characters from the end
+                seq_num = ''.join(c for c in seq_text if c.isdigit())
+                if seq_num:
+                    sequence = int(seq_num)
+                else:
+                    sequence = 1
                 total_sequences = int(seq_parts[1])
                 return family_id, sequence, total_sequences
         
-        return job_id, 1, 1
+        # Default fallback
+        return job_id.split('-')[0] if '-' in job_id else job_id, 1, 1
         
     def _parse_datetime(self, datetime_str: str, base: datetime) -> datetime:
         """Parse datetime string."""

@@ -67,10 +67,13 @@ class StageImprover:
         elif data_source != 'synthetic':
             snapshot_path = snapshot_paths['snapshot_normal']
             
+        # Use stage-specific reward profile or default to balanced
+        reward_profile = self.stage_config.get('reward_profile', 'balanced')
+        
         env = CurriculumSchedulingEnv(
             stage_config=self.stage_config,
             snapshot_path=snapshot_path,
-            reward_profile='balanced',
+            reward_profile=reward_profile,
             seed=42
         )
         
@@ -108,6 +111,10 @@ class StageImprover:
                 model.learning_rate = float(self.stage_config['learning_rate']) * 0.5
             else:
                 logger.info("Creating new model")
+                # Use stage-specific entropy coefficient if available
+                ent_coef = float(self.stage_config.get('ent_coef', 0.05))
+                logger.info(f"Using entropy coefficient: {ent_coef}")
+                
                 model = PPO(
                     'MlpPolicy',
                     train_env,
@@ -117,7 +124,7 @@ class StageImprover:
                     n_epochs=10,
                     gamma=0.99,
                     clip_range=0.2,
-                    ent_coef=0.01,  # Encourage exploration
+                    ent_coef=ent_coef,  # Use stage-specific or default
                     vf_coef=0.5,
                     max_grad_norm=0.5,
                     tensorboard_log=self.tensorboard_dir,

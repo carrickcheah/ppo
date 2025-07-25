@@ -19,18 +19,42 @@ class SchedulingPrompts:
         return """You are an expert production scheduler with deep knowledge of manufacturing operations.
 Your task is to create optimal job schedules while respecting all constraints.
 
-Key principles:
+CRITICAL CONSTRAINTS (MUST FOLLOW):
 1. SEQUENCE CONSTRAINTS: Jobs within a family MUST be scheduled in order (1/3 before 2/3 before 3/3)
+   - Job 2/3 can ONLY start after job 1/3 completes
+   - Job 3/3 can ONLY start after job 2/3 completes
+   
 2. MACHINE COMPATIBILITY: Jobs can only run on specified machines
+   - Each job has a list of capable machines
+   - NEVER schedule a job on a machine not in its list
+   
 3. NO OVERLAPS: Each machine can only process one job at a time
-4. MULTI-MACHINE JOBS: When a job requires multiple machines (e.g., machines[57,64,65]), ALL machines must be available and occupied simultaneously
-5. MINIMIZE LATENESS: Prioritize jobs with tight deadlines (LCD dates)
-6. MAXIMIZE EFFICIENCY: Minimize idle time and maximize machine utilization
+   - Check that machine is free before scheduling
+   
+4. MULTI-MACHINE JOBS (CRITICAL): 
+   - When machines[57,64,65,66,74], this means the job needs ALL 5 machines SIMULTANEOUSLY
+   - This is NOT a choice - ALL machines must be:
+     * Available at the same time
+     * Occupied for the entire job duration
+     * Released together when job completes
+   - Example: If job needs machines[57,64,65], block ALL three from time T1 to T2
+   
+5. PROCESSING TIMES: Use exact times provided - these come from real production data
+   - Times already calculated using: (JoQty / (CapQty * 60)) + (SetupTime / 60)
+   
+6. REAL DATA: All jobs and machines are from real production database
+   - Job IDs like JOAW25060101 are real customer orders
+   - Machine IDs like 57, 64, 151 are real factory machines
+   
+7. OPTIMIZATION GOALS:
+   - Minimize lateness (prioritize urgent jobs with LCD < 7 days)  
+   - Maximize machine utilization
+   - Complete important jobs (marked as IMPORTANT) as soon as possible
 
 Output format: Each scheduled job on a new line as:
 JobID -> machines[machine_ids] @ YYYY-MM-DD HH:MM - YYYY-MM-DD HH:MM
 
-Time should be in 24-hour format. Be precise with timings."""
+IMPORTANT: Use exact machine IDs from the job requirements. These are real machines in the factory."""
 
     @staticmethod
     def direct_scheduling_prompt(jobs_text: str, machines_text: str, start_time: str) -> str:

@@ -338,24 +338,40 @@ class SchedulingGameEnv(gym.Env):
         """
         reward = 0.0
         
-        # Base reward for completing any job
-        reward += self.config.get('completion_reward', 10.0)
+        # CRITICAL FIX: Strong base reward for completing any job
+        # This must outweigh any penalties to prevent "do nothing" behavior
+        reward += self.config.get('completion_reward', 50.0)  # Increased from 10.0
+        
+        # Action encouragement bonus - reward for taking ANY valid action
+        reward += self.config.get('action_bonus', 5.0)
         
         # Let AI learn importance
         if job.get('is_important', False):
             reward += self.config.get('importance_bonus', 20.0)
         
-        # Let AI learn about deadlines
+        # Let AI learn about deadlines with GRADUATED penalties
         if 'lcd_date' in job:
             days_until_deadline = job.get('lcd_days_remaining', 30)
-            # More reward for jobs closer to deadline
-            urgency_factor = max(0, 1.0 - days_until_deadline / 30.0)
-            reward += urgency_factor * self.config.get('urgency_multiplier', 50.0)
+            
+            # Positive reward for urgent jobs (not penalty)
+            if days_until_deadline < 7:
+                urgency_bonus = (7 - days_until_deadline) * 5.0
+                reward += urgency_bonus
+            
+            # Only apply late penalty if job will actually be late
+            if end_time > job.get('lcd_timestamp', float('inf')):
+                days_late = (end_time - job.get('lcd_timestamp', end_time)) / 24.0
+                # Graduated penalty: -1 per day late (not all-or-nothing)
+                late_penalty = min(days_late * 1.0, 20.0)  # Cap at -20
+                reward -= late_penalty
+            else:
+                # Bonus for on-time completion
+                reward += 10.0
         
         # Let AI learn about efficiency
-        # Waiting time penalty
+        # Waiting time penalty (reduced)
         wait_time = start_time - self.current_time
-        reward -= wait_time * self.config.get('wait_penalty', 0.1)
+        reward -= wait_time * self.config.get('wait_penalty', 0.05)  # Reduced from 0.1
         
         # Machine utilization bonus
         # AI learns to balance load across machines
@@ -364,8 +380,9 @@ class SchedulingGameEnv(gym.Env):
         if machine_load <= avg_load:
             reward += self.config.get('balance_bonus', 5.0)
         
-        # Time penalty to encourage faster completion
-        reward -= self.config.get('time_penalty', 0.1)
+        # Progress bonus - encourage continuous action
+        completion_rate = len(self.completed_jobs) / self.n_jobs
+        reward += completion_rate * 10.0
         
         return reward
     
