@@ -53,7 +53,7 @@ class CurriculumEnvironmentTrulyFixed(gym.Env):
             'sequence_completion': 20.0,     # Completing a sequence
             'family_completion': 50.0,       # Completing all sequences in family
             'on_time_bonus': 10.0,          # Meeting deadline
-            'late_penalty_per_day': -5.0    # Missing deadline
+            'late_penalty_per_day': -2.0    # Reduced from -5.0 to encourage scheduling
         }
         
         if verbose:
