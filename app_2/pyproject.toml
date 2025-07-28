@@ -23,6 +23,7 @@ dependencies = [
     "psutil>=7.0.0",
     "openai>=1.97.1",
     "backoff>=2.2.1",
+    "sb3-contrib>=2.7.0",
 ]
 
 [dependency-groups]

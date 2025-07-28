@@ -388,3 +388,49 @@
   - Ready for full 16-stage curriculum training
   - All critical issues resolved (machine IDs, rewards, data)
   - System validated and tested with production data
+
+### 2025-07-28 - Extensive Training for 80% Toy Stage Completion
+- **Objective**: Train toy stages (toy_normal, toy_hard, toy_multi) to achieve 80% scheduling completion
+- **Current Best Performance**:
+  - toy_easy: ✓ 100% (already perfect)
+  - toy_normal: 56.2% (gap: 23.8% to target)
+  - toy_hard: 30.0% (gap: 50.0% to target)
+  - toy_multi: 36.4% (gap: 43.6% to target)
+- **Critical Discovery**: Through exhaustive random search, proved 100% completion IS possible:
+  - toy_normal: Found action sequences achieving 100%
+  - toy_hard: Found action sequences achieving 100%
+  - toy_multi: Found action sequences achieving 95.5%
+  - This proves optimal solutions exist, but RL struggles to find them
+- **Training Approaches Attempted**:
+  1. **Standard PPO with Reward Shaping**: Achieved 25-56% range
+  2. **Pure Completion Focus**: Massive rewards (1000+) for scheduling, ignored deadlines
+     - Result: Improved toy_normal to 56.2%, others plateaued
+  3. **Phased/Curriculum Learning**: Start with completion, gradually add constraints
+     - Result: No significant improvement, models stuck in local optima
+  4. **Targeted 80% Training**: Balanced rewards optimized for 80% target
+     - Result: Failed to reach target after 500k timesteps
+  5. **Ultimate Training**: Exponential rewards, high exploration
+     - Result: Still plateaued below targets
+  6. **Adjusted Hyperparameters**: Lower learning rate (3e-4), smaller batches, deeper networks
+     - Result: Training showed promise but timed out after 425k steps
+- **Why PPO Models Struggle**:
+  1. **Sparse Valid Actions**: Only ~10% of random actions are valid schedules
+  2. **Conflicting Objectives**: Completion rewards vs deadline penalties create local optima
+  3. **Sequential Dependencies**: Early decisions heavily constrain later options
+  4. **Action Space Complexity**: MultiDiscrete spaces with many invalid combinations
+- **Key Files Created**:
+  - `/app_2/phase3/train_all_toys_to_perfection.py` - Completion-focused wrapper
+  - `/app_2/phase3/train_toys_achievable.py` - Phased training approach
+  - `/app_2/phase3/train_to_80_percent.py` - Targeted 80% training
+  - `/app_2/phase3/analyze_and_fix_100.py` - Proved 100% is possible
+  - `/app_2/phase3/train_adjusted_hyperparams.py` - Final hyperparameter tuning
+  - `/app_2/phase3/visualize_best_performance.py` - Performance analysis charts
+  - `/app_2/phase3/SCHEDULE_TEST_SUMMARY.md` - Comprehensive results summary
+- **Visualization Created**: Performance analysis chart saved to `/app_2/visualizations/phase3/toy_stages_performance_analysis.png`
+- **Recommendations for Future Work**:
+  1. **Hierarchical RL**: Decompose into job selection → machine assignment
+  2. **Imitation Learning**: Use the 100% sequences we discovered
+  3. **Better State Representation**: Include lookahead and capacity information
+  4. **Alternative Algorithms**: Consider SAC/TD3 or model-based RL
+  5. **Hybrid Approach**: Use RL for rough scheduling + heuristics for refinement
+- **Conclusion**: Despite proving 100% is achievable, standard PPO struggles with scheduling complexity. The gap between proven achievability (100%) and RL performance (30-56%) highlights fundamental challenges in applying RL to combinatorial optimization. Extensive experiments provide valuable insights for future system design.
