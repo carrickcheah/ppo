@@ -99,17 +99,17 @@ Last Updated: 2025-07-24
 - [x] Prepare multi-machine scenarios from actual database
 
 ### Step 2: Extended Curriculum Learning (16 stages) ✅ IMPLEMENTED
-#### Foundation Training (100k timesteps) ✅ IMPLEMENTED
-- [x] Toy Easy: 5 jobs, 3 machines - Learn sequence rules
-- [x] Toy Normal: 10 jobs, 5 machines - Learn deadlines
-- [x] Toy Hard: 15 jobs, 5 machines - Learn priorities
-- [x] Toy Multi: 10 jobs, 8 machines - Learn multi-machine
+#### Foundation Training (100k timesteps) ✅ IMPLEMENTED & TESTED
+- [x] Toy Easy: 5 jobs, 3 machines - Learn sequence rules (Achieved: 100%)
+- [x] Toy Normal: 10 jobs, 5 machines - Learn deadlines (Best: 56.2%)
+- [x] Toy Hard: 15 jobs, 5 machines - Learn priorities (Best: 30%)
+- [x] Toy Multi: 10 jobs, 8 machines - Learn multi-machine (Best: 36.4%)
 
-#### Strategy Development (200k timesteps) ✅ IMPLEMENTED
-- [x] Small Balanced: 30 jobs, 15 machines - Balance objectives
-- [x] Small Rush: 50 jobs, 20 machines - Handle urgency 
-- [x] Small Bottleneck: 40 jobs, 10 machines - Manage constraints
-- [x] Small Complex: 50 jobs, 25 machines - Complex dependencies
+#### Strategy Development (200k timesteps) ✅ PHASE 4 CREATED
+- [x] Small Balanced: 20 jobs, 12 machines - Balance objectives
+- [x] Small Rush: 20 jobs, 12 machines - Handle urgency 
+- [x] Small Bottleneck: 20 jobs, 10 machines - Manage constraints
+- [x] Small Complex: 20 jobs, 12 machines - Complex dependencies
 
 #### Scale Training (300k timesteps)
 - [ ] Medium Normal: 150 jobs, 40 machines
@@ -328,15 +328,51 @@ Last Updated: 2025-07-24
 14. ~~Create Phase 3 with REAL production data~~ ✅ (2025-07-25)
 15. ~~Implement curriculum environment with fixes~~ ✅ (2025-07-25)
 16. ~~Build training and evaluation tools~~ ✅ (2025-07-25)
-17. **NEXT**: Run full 16-stage curriculum training
-18. **NEXT**: Monitor training metrics via TensorBoard
-19. **NEXT**: Deploy inference API when training completes
+17. ~~Extensive toy stage training to 80%~~ ✅ (2025-07-28) - Best: 56.2%
+18. ~~Try action masking, reward engineering~~ ✅ (2025-07-28) - Made worse
+19. ~~Create Phase 4 strategy environments~~ ✅ (2025-07-28)
+20. **NEXT**: Train Phase 4 strategy environments
+21. **NEXT**: Consider hybrid approaches (RL + heuristics)
+22. **NEXT**: Deploy best performing models
 
 ## Key Insights from Discussion
 - **Multi-Machine Jobs**: Machine_v="57,64,65,66,74" means job needs ALL 5 machines simultaneously
 - **Processing Time**: Use capacity formula when CapMin_d=1: (JoQty_d/(CapQty_d*60)) + (SetupTime_d/60)
 - **Working Hours**: Apply as filter during deployment, not in training
 - **Constraints**: Hard (sequence, machines, overlap) vs Soft (deadlines, importance, efficiency)
+
+## Phase 3 Results & Lessons Learned (2025-07-28)
+### Toy Stage Performance
+- **toy_easy**: 100% (perfect - simple enough for RL)
+- **toy_normal**: 56.2% (best achieved, target was 80%)
+- **toy_hard**: 30% (significant gap from 80% target)
+- **toy_multi**: 36.4% (multi-machine complexity)
+
+### Failed Approaches That Made It Worse
+1. **Action Masking (MaskablePPO)**: 25% vs baseline 56.2%
+   - Flattened action space lost structure
+   - Model couldn't learn hierarchical decisions
+2. **Better Rewards**: Negative total rewards
+   - Model learned to do nothing
+   - Risk avoidance dominated behavior
+3. **Schedule All Environment**: 31.2%
+   - Model memorized sequences instead of learning
+   - Got stuck on invalid actions
+4. **Simple Penalty Reduction**: 12.5%
+   - Model repeatedly tried invalid actions
+   - Couldn't recover from mistakes
+
+### Key Discoveries
+- **Sparse Valid Actions**: Only ~10% of actions are valid
+- **Sequential Dependencies**: Order matters critically
+- **Impossible Jobs**: Some jobs have deadlines shorter than processing time
+- **Model Behavior**: Tends to get stuck trying invalid actions after completing families
+
+### Recommendations
+- Pure RL may not be suitable for complex scheduling
+- Consider hybrid approaches (RL for high-level, rules for low-level)
+- Hierarchical RL might help (job selection → machine assignment)
+- Imitation learning from discovered optimal sequences
 
 ---
 *Note: Critical understanding - jobs can require multiple machines working together. This fundamentally changes our action space and state representation.*

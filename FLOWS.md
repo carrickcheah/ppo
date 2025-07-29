@@ -4,7 +4,7 @@
 
 The PPO scheduling system uses deep reinforcement learning to optimize production scheduling. This document outlines the complete workflow from data ingestion to schedule visualization.
 
-**Current Status**: Phase 3 Complete. All implementation done with 100% real production data. Fixed 0% utilization issue by improving reward structure. Ready for full 16-stage curriculum training.
+**Current Status**: Phase 4 Strategy Development Created. Phase 3 training revealed RL limitations (best: 56.2% vs 80% target). Created 4 strategy environments for focused testing. Ready for Phase 4 training.
 
 ## Pure DRL Scheduling Workflow (Updated Architecture)
 
@@ -149,26 +149,29 @@ Value Head → State value estimate
 
 ### Phase 4: Curriculum Learning (16 Stages)
 ```
-Foundation Training (Stages 1-4): ✅ IMPLEMENTED
+Foundation Training (Stages 1-4): ✅ TESTED
 - Toy environments: 5-15 jobs, 3-8 machines
 - Uses REAL job IDs (JOAW, JOST, JOTP) and machine names
-- Learn: sequence rules, deadlines, priorities, multi-machine
+- Results: toy_easy 100%, toy_normal 56.2%, toy_hard 30%, toy_multi 36.4%
+- Gap to 80% target revealed RL limitations
 
-Strategy Development (Stages 5-8): ✅ IMPLEMENTED  
-- Small scale: 30-50 jobs, 10-25 machines
-- Fixed reward structure: +50 completion bonus, +5 action bonus
-- Rush stage uses tolerant late penalties
-- All using REAL production data
+Strategy Development (Stages 5-8): ✅ CREATED (Phase 4)
+- Small scale: 20 jobs, 10-12 machines (adjusted from data availability)
+- Four focused scenarios:
+  - Small Balanced: General scheduling test
+  - Small Rush: Urgent deadline handling
+  - Small Bottleneck: Resource constraint management  
+  - Small Complex: Multi-machine job coordination
+- Custom reward structures per scenario
+- All using REAL production data subsets
 
-Scale Training (Stages 9-12): ✅ IMPLEMENTED
+Scale Training (Stages 9-12): 📋 PENDING
 - Medium to large scale: 80-109 jobs, 40-100 machines
-- Real job complexity from database
-- Progressive difficulty increase
+- Depends on Phase 4 results
 
-Production Mastery (Stages 13-16): ✅ IMPLEMENTED
-- Full scale: 109 jobs, 145 machines (all real)
-- Normal, rush, heavy, and expert scenarios
-- Ready for training with performance gates
+Production Mastery (Stages 13-16): 📋 PENDING
+- Full scale: 109 jobs, 145 machines
+- Requires successful smaller scale training
 ```
 
 ## Deployment Workflow
@@ -200,6 +203,38 @@ for scheduled_job in raw_schedule:
 5. **100% Real Production Data**: All training uses actual job IDs and machine names from MariaDB
 6. **Fixed Reward Structure**: Completion bonuses prevent "do nothing" behavior
 7. **Machine ID Mapping**: Handles non-sequential database IDs correctly
+
+## Phase 3 Findings & Lessons Learned
+
+### What Worked
+- Simple PPO achieved 56.2% on toy_normal (best result)
+- Environment correctly handles real production data
+- Multi-machine job scheduling functions properly
+- Training infrastructure stable and scalable
+
+### What Failed (Made Performance Worse)
+1. **Action Masking**: 25% (vs 56.2% baseline)
+   - Lost action space structure when flattening
+2. **Reward Engineering**: Negative rewards, 0% scheduling
+   - Model preferred doing nothing over risk
+3. **Schedule All Environment**: 31.2%
+   - Model memorized sequences, got stuck on invalid actions
+4. **Simple Penalty Reduction**: 12.5%
+   - Model repeatedly tried invalid actions
+
+### Root Causes Identified
+- Only ~10% of random actions are valid
+- Sequential dependencies create cascading constraints
+- Some jobs have impossible deadlines (158h work, 144h deadline)
+- Model gets stuck trying invalid actions after completing families
+- Pure RL struggles with combinatorial optimization
+
+### Phase 4 Response
+Created focused strategy environments to test specific scheduling challenges:
+- Balanced workloads vs resource constraints
+- Urgent deadlines vs complex dependencies
+- Each with tailored reward structures
+- Progressive difficulty to identify RL capabilities
 
 ## Performance Monitoring
 

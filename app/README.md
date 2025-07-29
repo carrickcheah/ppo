@@ -1,36 +1,43 @@
 # Deep Reinforcement Learning Scheduling System
 
-## Project Status: Phase 3 Complete - Ready for Training ✅
+## Project Status: Phase 4 Strategy Development - Ready for Training ✅
 
 ### Pure DRL System (/app_2) - Current Status
 - **Phase 1 & 2**: ✅ COMPLETE - Environment and PPO model implemented
-- **Phase 3**: ✅ COMPLETE - Curriculum learning implementation with 100% real data
+- **Phase 3**: ✅ COMPLETE - Toy stages tested (best: 56.2% vs 80% target)
+- **Phase 4**: ✅ CREATED - 4 strategy environments for focused testing
 - **Data**: 109 real production jobs, 145 real machines from MariaDB
-- **Next Step**: Run full 16-stage curriculum training
+- **Next Step**: Train Phase 4 strategy environments
 
-## Latest Updates (July 25, 2025)
+## Latest Updates (July 28, 2025)
 
-### Phase 3 - Complete Implementation with Real Data
-- **Major Achievement**: All training now uses 100% REAL production data
-  - Real job IDs: JOAW25070116, JOST25060128, JOTP25060248, etc.
-  - Real machine names: OV01, ALDG, BDS01, CM03, etc.
-  - No synthetic or dummy data anywhere
-- **Components Implemented**:
-  - `ingest_real_data.py`: Fetches real data and creates 16 stage snapshots
-  - `curriculum_env_real.py`: Environment with all critical fixes
-  - `train_curriculum.py`: 16-stage progressive training script
-  - `evaluate_and_visualize.py`: Gantt chart generation and metrics
-- **Critical Fixes Applied**:
-  - Machine ID mapping (0-based to 1-based)
-  - Reward structure with completion bonuses (+50) and action bonuses (+5)
-  - Info dict key: 'action_valid' not 'valid_action'
-  - Proper handling of multi-machine jobs
+### Phase 3 Results - RL Limitations Discovered
+- **Toy Stage Performance** (target: 80% completion):
+  - toy_easy: 100% ✅ (simple enough for RL)
+  - toy_normal: 56.2% ❌ (best achieved)
+  - toy_hard: 30.0% ❌ (significant gap)
+  - toy_multi: 36.4% ❌ (multi-machine complexity)
+- **Failed Improvement Attempts** (all made performance worse):
+  - Action Masking with MaskablePPO: 25% (vs 56.2% baseline)
+  - Better Reward Engineering: Negative rewards, 0% scheduling
+  - Schedule All Environment: 31.2% (model memorized sequences)
+  - Simple Penalty Reduction: 12.5% (model stuck on invalid actions)
+- **Root Causes Identified**:
+  - Only ~10% of random actions are valid
+  - Sequential dependencies create cascading constraints
+  - Some jobs have impossible deadlines
+  - Pure RL struggles with combinatorial optimization
 
-### Key Technical Achievements
-- **Real Data Integration**: Direct connection to MariaDB for production data
-- **16-Stage Curriculum**: From toy_easy (5 jobs) to production_expert (109 jobs)
-- **Visualization**: Gantt charts saved to `/app_2/visualizations/phase3/`
-- **Performance Gates**: Each stage must meet targets before progression
+### Phase 4 - Strategy Development Created
+- **Response to Phase 3 Results**: Created focused strategy environments
+- **4 Small-Scale Scenarios** (all using real production data):
+  - **Small Balanced**: 20 jobs, 12 machines - General scheduling test
+  - **Small Rush**: 20 jobs, 12 machines - Urgent deadline handling
+  - **Small Bottleneck**: 20 jobs, 10 machines - Resource constraint management
+  - **Small Complex**: 20 jobs, 12 machines - Multi-machine job coordination
+- **Custom Reward Structures**: Tailored rewards per scenario
+- **Progressive Difficulty**: Balanced → Rush → Bottleneck → Complex
+- **Training Configuration**: 500K-1M timesteps per strategy
 
 ## System Architecture
 
@@ -69,17 +76,17 @@ MariaDB → Real Data → Curriculum Stages → PPO Training → Optimal Schedul
 - **Job Prefixes**: JOAW, JOST, JOTP, JOTRDG, JOPRD (all real)
 
 ### Curriculum Stages (All Using Real Data)
-1. **Foundation** (Stages 1-4): 5-15 jobs, 3-8 machines
-2. **Strategy** (Stages 5-8): 30-50 jobs, 10-25 machines  
-3. **Scale** (Stages 9-12): 80-109 jobs, 40-100 machines
-4. **Production** (Stages 13-16): 109 jobs, 145 machines
+1. **Foundation** (Stages 1-4): ✅ TESTED - Best: 56.2% (gap to 80% target)
+2. **Strategy** (Stages 5-8): ✅ PHASE 4 - Created 4 focused environments
+3. **Scale** (Stages 9-12): 📋 PENDING - Depends on Phase 4 results
+4. **Production** (Stages 13-16): 📋 PENDING - Requires successful smaller scale
 
 ## Quick Start
 
-### Running Full Training
+### Training Phase 4 Strategies
 ```bash
 cd /Users/carrickcheah/Project/ppo/app
-uv run python ../app_2/phase3/train_curriculum.py
+uv run python ../app_2/phase4/train_strategies.py
 ```
 
 ### Testing Environment
@@ -118,15 +125,15 @@ uv run python ../app_2/phase3/evaluate_and_visualize.py --all
 ## Next Steps
 
 ### Immediate Actions
-1. **Start Training**: Run the full 16-stage curriculum
-2. **Monitor Progress**: Use TensorBoard to track metrics
-3. **Evaluate Stages**: Generate Gantt charts for each stage
+1. **Train Phase 4**: Run all 4 strategy environments
+2. **Evaluate Performance**: Target >50% completion on 2+ scenarios
+3. **Analyze Results**: Determine if RL is viable for this problem
 
-### Phase 4 - Deployment (After Training)
-1. Build FastAPI inference server
-2. Add working hours post-processing
-3. Connect to frontend visualization
-4. Deploy trained model to production
+### Future Considerations
+1. **If Phase 4 Succeeds**: Scale to medium/large environments
+2. **If Phase 4 Fails**: Consider hybrid approaches (RL + heuristics)
+3. **Alternative**: Hierarchical RL or imitation learning
+4. **Deployment**: Only after achieving reasonable performance
 
 ## Success Metrics
 
@@ -135,22 +142,21 @@ uv run python ../app_2/phase3/evaluate_and_visualize.py --all
 - Fixed all critical issues (machine IDs, rewards, action validity)
 - Implemented full curriculum learning pipeline
 - Created evaluation and visualization tools
-- All tests passing with real data validation
+- Discovered RL limitations through extensive testing
 
-### Training Targets
-- 95% constraint satisfaction
-- 85% on-time delivery rate  
-- >60% machine utilization
-- <100ms inference time
-- Learn optimal strategies from experience
+### Phase 4 Success Criteria
+- >50% completion rate on 2+ strategy environments
+- Learn different strategies for different scenarios
+- Determine viability of pure RL approach
+- Guide decision on hybrid vs pure RL architecture
 
-## Key Improvements
+## Key Discoveries from Phase 3
 
-1. **100% Real Data**: No synthetic data - all from production database
-2. **Fixed Rewards**: Completion bonuses prevent "do nothing" behavior
-3. **Machine ID Mapping**: Handles non-sequential database IDs
-4. **16-Stage Curriculum**: Progressive learning from simple to complex
-5. **Performance Gates**: Quality requirements before progression
+1. **RL Limitations**: Pure RL achieved only 56.2% vs 80% target
+2. **Action Space Challenge**: Only ~10% of actions are valid
+3. **Sequential Dependencies**: Order constraints heavily impact learning
+4. **Every "Improvement" Failed**: Action masking, reward engineering all made it worse
+5. **Phase 4 Response**: Created focused strategy environments to test specific challenges
 
 ---
 
