@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 class CurriculumDataPreparer:
     """Prepares real production data for 16-stage curriculum learning."""
     
-    def __init__(self, data_dir: str = "/Users/carrickcheah/Project/ppo/app_2/data"):
+    def __init__(self, data_dir: str = "/home/azureuser/ppo/app_2/data"):
         self.data_dir = data_dir
         os.makedirs(self.data_dir, exist_ok=True)
         self.ingester = ProductionDataIngester()

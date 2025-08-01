@@ -30,7 +30,7 @@ from phase4.environments import (
 class StrategyTrainer:
     """Trains PPO on different strategy environments."""
     
-    def __init__(self, output_dir: str = "/Users/carrickcheah/Project/ppo/app_2/phase4/results"):
+    def __init__(self, output_dir: str = "/home/azureuser/ppo/app_2/phase4/results"):
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
         

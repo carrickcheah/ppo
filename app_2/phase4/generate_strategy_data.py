@@ -13,9 +13,9 @@ from datetime import datetime, timedelta
 class StrategyDataGenerator:
     """Generate strategy-specific datasets from production data."""
     
-    def __init__(self, source_data_dir: str = "/Users/carrickcheah/Project/ppo/app_2/data"):
+    def __init__(self, source_data_dir: str = "/home/azureuser/ppo/app_2/data"):
         self.source_dir = source_data_dir
-        self.output_dir = "/Users/carrickcheah/Project/ppo/app_2/phase4/data"
+        self.output_dir = "/home/azureuser/ppo/app_2/phase4/data"
         os.makedirs(self.output_dir, exist_ok=True)
         
         # Load all available production data
