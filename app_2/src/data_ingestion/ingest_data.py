@@ -249,7 +249,8 @@ class ProductionDataIngester:
                       planning_horizon_days: int = 30,
                       manual_hours_multiplier: float = 8.0,
                       priority_default: int = 5,
-                      limit: int = 1000) -> List[Dict]:
+                      limit: int = 1000,
+                      job_family_limit: Optional[int] = None) -> List[Dict]:
         """Fetch job data from database."""
         try:
             conn = self.connect()
@@ -272,7 +273,8 @@ class ProductionDataIngester:
     def convert_to_ppo_format(self,
                              job_data: List[Dict],
                              machines: Dict[int, Dict],
-                             machine_capabilities: Dict[int, List[str]]) -> Dict[str, Dict]:
+                             machine_capabilities: Dict[int, List[str]],
+                             job_family_limit: Optional[int] = None) -> Dict[str, Dict]:
         """Convert raw job data to PPO-compatible format."""
         families = {}
         
@@ -288,6 +290,14 @@ class ProductionDataIngester:
             if family_id not in job_groups:
                 job_groups[family_id] = []
             job_groups[family_id].append(row)
+        
+        # Apply job family limit if specified
+        if job_family_limit and job_family_limit < len(job_groups):
+            # Sort by LCD date (most urgent first) and take the limit
+            sorted_families = sorted(job_groups.items(), 
+                                   key=lambda x: x[1][0].get('lcd_date', datetime.max.date()))
+            job_groups = dict(sorted_families[:job_family_limit])
+            logger.info(f"Limited to {job_family_limit} most urgent job families")
         
         # Process each family
         for family_id, processes in job_groups.items():
@@ -395,11 +405,24 @@ class ProductionDataIngester:
     def create_snapshot(self,
                        planning_horizon_days: int = 30,
                        output_file: str = None,
-                       include_machines: bool = True) -> str:
-        """Create a complete snapshot for PPO training."""
+                       include_machines: bool = True,
+                       job_family_limit: Optional[int] = None,
+                       snapshot_type: str = 'custom') -> str:
+        """Create a complete snapshot for PPO training.
+        
+        Args:
+            planning_horizon_days: Days ahead to look for jobs
+            output_file: Output file path
+            include_machines: Whether to include machine data
+            job_family_limit: Limit number of job families (for graduated snapshots)
+            snapshot_type: Type of snapshot ('toy', 'small', 'medium', 'large', 'full', 'custom')
+        """
         if output_file is None:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            output_file = f'app/data/production_snapshot_{timestamp}.json'
+            if job_family_limit:
+                output_file = f'app_2/data/production_snapshot_{snapshot_type}_{job_family_limit}jobs_{timestamp}.json'
+            else:
+                output_file = f'app_2/data/production_snapshot_full_{timestamp}.json'
         
         # Fetch all required data
         logger.info("Fetching machine data...")
@@ -409,10 +432,11 @@ class ProductionDataIngester:
         machine_capabilities = self.fetch_machine_type_capabilities()
         
         logger.info("Fetching job data...")
-        job_data = self.fetch_job_data(planning_horizon_days=planning_horizon_days)
+        job_data = self.fetch_job_data(planning_horizon_days=planning_horizon_days,
+                                      limit=job_family_limit * 10 if job_family_limit else 1000)
         
         logger.info("Converting to PPO format...")
-        families = self.convert_to_ppo_format(job_data, machines, machine_capabilities)
+        families = self.convert_to_ppo_format(job_data, machines, machine_capabilities, job_family_limit)
         
         # Create snapshot
         snapshot = {
@@ -456,6 +480,57 @@ class ProductionDataIngester:
         logger.info(f"Saved snapshot to {output_file}")
         return output_file
         
+    def create_graduated_snapshots(self, output_dir: str = 'app_2/data') -> Dict[str, str]:
+        """Create multiple snapshots with increasing complexity for progressive training.
+        
+        Returns:
+            Dict mapping snapshot type to file path
+        """
+        snapshots = {
+            'toy': 25,      # Phase 1: Toy environment
+            'small': 50,    # Phase 2: Small scale
+            'medium': 100,  # Phase 3: Medium scale
+            'large': 200,   # Phase 4: Large scale
+            'full': None    # Phase 5: Full production (no limit)
+        }
+        
+        created_files = {}
+        
+        for snapshot_type, job_limit in snapshots.items():
+            logger.info(f"\n=== Creating {snapshot_type} snapshot ===")
+            if job_limit:
+                logger.info(f"Limiting to {job_limit} job families")
+            else:
+                logger.info("Including all job families")
+            
+            output_file = self.create_snapshot(
+                planning_horizon_days=30,
+                job_family_limit=job_limit,
+                snapshot_type=snapshot_type,
+                include_machines=True
+            )
+            
+            created_files[snapshot_type] = output_file
+            
+            # Load and show statistics
+            with open(output_file, 'r') as f:
+                data = json.load(f)
+            
+            logger.info(f"Created {snapshot_type} snapshot:")
+            logger.info(f"  - File: {output_file}")
+            logger.info(f"  - Job families: {data['metadata']['total_families']}")
+            logger.info(f"  - Total tasks: {data['metadata']['total_tasks']}")
+            logger.info(f"  - Machines: {data['metadata']['total_machines']}")
+            if 'statistics' in data:
+                logger.info(f"  - Urgent families: {data['statistics']['urgent_families']}")
+                logger.info(f"  - Critical families: {data['statistics']['critical_families']}")
+        
+        logger.info("\n=== All snapshots created successfully ===")
+        for snapshot_type, path in created_files.items():
+            logger.info(f"{snapshot_type:10s}: {path}")
+        
+        return created_files
+    
     def get_production_metrics(self) -> Dict[str, Any]:
         """Get current production metrics for monitoring."""
         try:
@@ -545,6 +620,10 @@ if __name__ == "__main__":
     parser.add_argument('--horizon', type=int, default=30, help='Planning horizon in days')
     parser.add_argument('--metrics', action='store_true', help='Show production metrics')
     parser.add_argument('--test', action='store_true', help='Test connection only')
+    parser.add_argument('--graduated', action='store_true', help='Create graduated snapshots (toy, small, medium, large, full)')
+    parser.add_argument('--snapshot-type', choices=['toy', 'small', 'medium', 'large', 'full', 'custom'], 
+                       default='custom', help='Type of snapshot to create')
+    parser.add_argument('--job-limit', type=int, help='Limit number of job families')
     
     args = parser.parse_args()
     
@@ -581,14 +660,46 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Error fetching metrics: {e}")
             exit(1)
-    else:
-        # Create snapshot
+    elif args.graduated:
+        # Create graduated snapshots
         try:
+            created_files = ingester.create_graduated_snapshots()
+            print("\n✓ All graduated snapshots created successfully!")
+            for snapshot_type, path in created_files.items():
+                print(f"  {snapshot_type:10s}: {path}")
+        except Exception as e:
+            print(f"✗ Error creating graduated snapshots: {e}")
+            exit(1)
+    else:
+        # Create single snapshot
+        try:
+            # Determine job limit based on snapshot type
+            job_limits = {
+                'toy': 25,
+                'small': 50,
+                'medium': 100,
+                'large': 200,
+                'full': None,
+                'custom': args.job_limit
+            }
+            
+            job_limit = job_limits.get(args.snapshot_type, args.job_limit)
+            
             output_file = ingester.create_snapshot(
                 planning_horizon_days=args.horizon,
-                output_file=args.output
+                output_file=args.output,
+                job_family_limit=job_limit,
+                snapshot_type=args.snapshot_type
             )
             print(f"✓ Snapshot created: {output_file}")
+            
+            # Show snapshot statistics
+            with open(output_file, 'r') as f:
+                data = json.load(f)
+            print(f"  Job families: {data['metadata']['total_families']}")
+            print(f"  Total tasks: {data['metadata']['total_tasks']}")
+            print(f"  Machines: {data['metadata']['total_machines']}")
+            
         except Exception as e:
             print(f"✗ Error creating snapshot: {e}")
             exit(1)

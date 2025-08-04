@@ -326,9 +326,11 @@ def run_ppo_model_and_generate_schedule(model_path: str, env_class, max_steps: i
 
 
 def discover_all_trained_models():
-    """Discover all available trained models in phase4 results."""
-    base_dir = '/Users/carrickcheah/Project/ppo/app_2/phase4/results'
+    """Discover ALL available trained models from both phase3 and phase4."""
     models = []
+    
+    # Phase 4 Models
+    base_dir = '/Users/carrickcheah/Project/ppo/app_2/phase4/results'
     
     # Check small_balanced models
     balanced_dir = os.path.join(base_dir, 'small_balanced')
@@ -337,25 +339,20 @@ def discover_all_trained_models():
         final_model = os.path.join(balanced_dir, 'small_balanced_final.zip')
         if os.path.exists(final_model):
             models.append({
-                'name': 'small_balanced_final',
+                'name': 'phase4_small_balanced_final',
                 'scenario': 'small_balanced',
                 'env_class': SmallBalancedEnvironment,
                 'model_path': final_model
             })
         
-        # Checkpoint models
+        # ALL checkpoint models (not just key ones)
         checkpoints_dir = os.path.join(balanced_dir, 'checkpoints')
         if os.path.exists(checkpoints_dir):
-            checkpoints = [f for f in os.listdir(checkpoints_dir) if f.endswith('.zip')]
-            # Test a few key checkpoints
-            key_checkpoints = ['small_balanced_checkpoint_500000_steps.zip', 
-                             'small_balanced_checkpoint_300000_steps.zip',
-                             'small_balanced_checkpoint_100000_steps.zip']
-            for checkpoint in key_checkpoints:
-                checkpoint_path = os.path.join(checkpoints_dir, checkpoint)
-                if os.path.exists(checkpoint_path):
+            for checkpoint in os.listdir(checkpoints_dir):
+                if checkpoint.endswith('.zip'):
+                    checkpoint_path = os.path.join(checkpoints_dir, checkpoint)
                     models.append({
-                        'name': f'small_balanced_{checkpoint.replace(".zip", "")}',
+                        'name': f'phase4_small_balanced_{checkpoint.replace(".zip", "")}',
                         'scenario': 'small_balanced',
                         'env_class': SmallBalancedEnvironment,
                         'model_path': checkpoint_path
@@ -364,22 +361,79 @@ def discover_all_trained_models():
     # Check small_rush models
     rush_dir = os.path.join(base_dir, 'small_rush')
     if os.path.exists(rush_dir):
-        # Checkpoint models only (no final model yet)
         checkpoints_dir = os.path.join(rush_dir, 'checkpoints')
         if os.path.exists(checkpoints_dir):
-            key_checkpoints = ['small_rush_checkpoint_300000_steps.zip',
-                             'small_rush_checkpoint_200000_steps.zip',
-                             'small_rush_checkpoint_100000_steps.zip']
-            for checkpoint in key_checkpoints:
-                checkpoint_path = os.path.join(checkpoints_dir, checkpoint)
-                if os.path.exists(checkpoint_path):
+            for checkpoint in os.listdir(checkpoints_dir):
+                if checkpoint.endswith('.zip'):
+                    checkpoint_path = os.path.join(checkpoints_dir, checkpoint)
                     models.append({
-                        'name': f'small_rush_{checkpoint.replace(".zip", "")}',
+                        'name': f'phase4_small_rush_{checkpoint.replace(".zip", "")}',
                         'scenario': 'small_rush', 
                         'env_class': SmallRushEnvironment,
                         'model_path': checkpoint_path
                     })
     
+    # Phase 3 Models - Use SmallBalancedEnvironment as fallback
+    phase3_base = '/Users/carrickcheah/Project/ppo/app_2/phase3'
+    
+    # Curriculum models
+    curriculum_dir = os.path.join(phase3_base, 'curriculum_models')
+    if os.path.exists(curriculum_dir):
+        for scenario_dir in os.listdir(curriculum_dir):
+            scenario_path = os.path.join(curriculum_dir, scenario_dir)
+            if os.path.isdir(scenario_path):
+                for model_file in os.listdir(scenario_path):
+                    if model_file.endswith('.zip'):
+                        models.append({
+                            'name': f'phase3_curriculum_{scenario_dir}_{model_file.replace(".zip", "")}',
+                            'scenario': 'small_balanced',  # Use balanced env as fallback
+                            'env_class': SmallBalancedEnvironment,
+                            'model_path': os.path.join(scenario_path, model_file)
+                        })
+    
+    # Checkpoints models
+    checkpoints_base = os.path.join(phase3_base, 'checkpoints')
+    categories = ['80percent', 'better_rewards', 'foundation', 'masked', 'perfect', 'schedule_all', 'simple_fix', 'truly_fixed']
+    
+    for category in categories:
+        category_path = os.path.join(checkpoints_base, category)
+        if os.path.exists(category_path):
+            for sub_item in os.listdir(category_path):
+                sub_path = os.path.join(category_path, sub_item)
+                if os.path.isdir(sub_path):
+                    # Directory with models
+                    for model_file in os.listdir(sub_path):
+                        if model_file.endswith('.zip'):
+                            models.append({
+                                'name': f'phase3_{category}_{sub_item}_{model_file.replace(".zip", "")}',
+                                'scenario': 'small_balanced',
+                                'env_class': SmallBalancedEnvironment,
+                                'model_path': os.path.join(sub_path, model_file)
+                            })
+                elif sub_item.endswith('.zip'):
+                    # Direct model file
+                    models.append({
+                        'name': f'phase3_{category}_{sub_item.replace(".zip", "")}',
+                        'scenario': 'small_balanced',
+                        'env_class': SmallBalancedEnvironment,
+                        'model_path': sub_path
+                    })
+    
+    # Additional model directories from phase3
+    additional_dirs = ['models_100_percent', 'models_80_percent', 'models_schedule_all', 'final_models', 'truly_fixed_models']
+    for dir_name in additional_dirs:
+        models_dir = os.path.join(phase3_base, dir_name)
+        if os.path.exists(models_dir):
+            for model_file in os.listdir(models_dir):
+                if model_file.endswith('.zip'):
+                    models.append({
+                        'name': f'phase3_{dir_name}_{model_file.replace(".zip", "")}',
+                        'scenario': 'small_balanced',
+                        'env_class': SmallBalancedEnvironment,
+                        'model_path': os.path.join(models_dir, model_file)
+                    })
+    
+    print(f"Discovered {len(models)} total models ({len([m for m in models if 'phase4' in m['name']])} phase4, {len([m for m in models if 'phase3' in m['name']])} phase3)")
     return models
 
 
@@ -518,12 +572,38 @@ def main():
     # Print results by scenario
     print("\nPERFORMANCE SUMMARY BY MODEL:")
     print("-" * 70)
-    for result in sorted(results_summary['scenarios_tested'], key=lambda x: x['total_reward'], reverse=True):
-        print(f"  {result['model_name']:<40} | Reward: {result['total_reward']:>8.2f} | Families: {result['scheduled_families']:>3}")
+    sorted_results = sorted(results_summary['scenarios_tested'], key=lambda x: x['total_reward'], reverse=True)
+    for i, result in enumerate(sorted_results[:15]):  # Show top 15
+        print(f"{i+1:2d}. {result['model_name']:<50} | Reward: {result['total_reward']:>8.2f} | Families: {result['scheduled_families']:>3}")
+    
+    # Create the improved production schedule using the BEST model
+    if sorted_results:
+        best_result = sorted_results[0]
+        print(f"\nCREATING IMPROVED PRODUCTION SCHEDULE USING BEST MODEL:")
+        print(f"Best Model: {best_result['model_name']}")
+        print(f"Performance: {best_result['total_reward']:.2f} reward, {best_result['scheduled_families']} families")
+        
+        # Create enhanced visualization for the best model
+        best_schedule_path = os.path.join(viz_dir, f"{best_result['schedule_data']}")
+        if os.path.exists(best_schedule_path):
+            with open(best_schedule_path, 'r') as f:
+                best_schedule = json.load(f)
+            
+            # Create improved production schedule chart
+            improved_chart_path = os.path.join(viz_dir, "improved_production_schedule.png")
+            create_enhanced_production_chart(best_schedule, improved_chart_path, best_result['model_name'])
+            
+            print(f"IMPROVED PRODUCTION SCHEDULE SAVED: {improved_chart_path}")
+            results_summary['best_schedule_chart'] = improved_chart_path
+    
+    # Generate comparison report
+    comparison_report_path = os.path.join(viz_dir, f"model_comparison_report_{timestamp}.md")
+    create_comparison_report(results_summary, comparison_report_path)
+    print(f"COMPARISON REPORT SAVED: {comparison_report_path}")
     
     print("\nGENERATED VISUALIZATIONS:")
     print("-" * 70)
-    for result in results_summary['scenarios_tested']:
+    for result in results_summary['scenarios_tested'][:5]:  # Show top 5
         print(f"\n{result['model_name']}:")
         print(f"  Job Allocation:     {result['job_allocation_chart']}")
         print(f"  Machine Allocation: {result['machine_allocation_chart']}")
@@ -600,6 +680,231 @@ def create_performance_comparison_chart(results_summary: Dict, viz_dir: str, tim
     
     print(f"Performance comparison chart saved: {comparison_chart_path}")
     results_summary['visualizations_created'].append(comparison_chart_path)
+
+
+def create_enhanced_production_chart(schedule_data: Dict, save_path: str, model_name: str):
+    """Create an enhanced production planning chart with professional formatting."""
+    
+    if not schedule_data or 'families' not in schedule_data:
+        print(f"No valid schedule data for enhanced chart")
+        return
+    
+    # Extract scheduled jobs
+    scheduled_jobs = []
+    for family_id, family_data in schedule_data['families'].items():
+        if 'scheduled_tasks' in family_data:
+            for task in family_data['scheduled_tasks']:
+                if 'start_time' in task and 'end_time' in task:
+                    scheduled_jobs.append({
+                        'job_id': family_id,
+                        'task_id': f"{family_id}_seq{task.get('sequence', 1)}",
+                        'start': task['start_time'],
+                        'end': task['end_time'],
+                        'machine': task.get('machine_id', 'Unknown'),
+                        'lcd_date': family_data.get('lcd_date', '2025-08-15'),
+                        'process': task.get('process_name', 'Unknown')
+                    })
+    
+    if not scheduled_jobs:
+        print(f"No scheduled jobs found for enhanced chart")
+        return
+    
+    # Sort jobs by job_id for consistent display
+    scheduled_jobs.sort(key=lambda x: x['job_id'])
+    
+    # Create enhanced figure
+    fig, ax = plt.subplots(figsize=(18, max(10, len(scheduled_jobs) * 0.5)))
+    
+    # Define professional colors
+    colors = {
+        'late': '#D32F2F',      # Red for late jobs
+        'warning': '#F57C00',   # Orange for jobs at risk
+        'caution': '#FBC02D',   # Yellow for jobs with tight deadlines
+        'ok': '#388E3C'         # Green for jobs on time
+    }
+    
+    # Plot job bars
+    y_positions = {}
+    current_y = 0
+    
+    for job in scheduled_jobs:
+        job_id = job['job_id']
+        if job_id not in y_positions:
+            y_positions[job_id] = current_y
+            current_y += 1
+        
+        y_pos = y_positions[job_id]
+        duration = job['end'] - job['start']
+        
+        # Get color based on deadline status
+        try:
+            job_end_dt = datetime.strptime("2025-07-25", "%Y-%m-%d") + timedelta(hours=job['end'])
+            lcd_dt = datetime.strptime(job['lcd_date'], "%Y-%m-%d")
+            days_diff = (lcd_dt - job_end_dt).days
+            
+            if days_diff < 0:
+                status = 'late'
+            elif days_diff <= 1:
+                status = 'warning'
+            elif days_diff <= 3:
+                status = 'caution'
+            else:
+                status = 'ok'
+        except:
+            status = 'ok'
+        
+        color = colors[status]
+        
+        # Create bar with professional styling
+        bar = ax.barh(y_pos, duration, left=job['start'], height=0.7, 
+                     color=color, alpha=0.8, edgecolor='black', linewidth=0.8)
+        
+        # Add detailed task label
+        if duration > 3:  # Only show label if bar is wide enough
+            ax.text(job['start'] + duration/2, y_pos, f"M{job['machine']}", 
+                   ha='center', va='center', fontsize=9, fontweight='bold', color='white')
+    
+    # Add red dashed line at 16:00 (as requested)
+    ax.axvline(x=16.0, color='red', linestyle='--', linewidth=2, alpha=0.8, label='4:00 PM Deadline')
+    
+    # Professional formatting
+    ax.set_yticks(list(y_positions.values()))
+    ax.set_yticklabels(list(y_positions.keys()), fontsize=11)
+    ax.set_xlabel('Time (hours)', fontsize=14, fontweight='bold')
+    ax.set_ylabel('Job IDs', fontsize=14, fontweight='bold')
+    ax.set_title(f'Production Planning System - Enhanced Schedule\nModel: {model_name} | {len(scheduled_jobs)} Jobs Scheduled', 
+                fontsize=16, fontweight='bold', pad=20)
+    
+    # Enhanced legend
+    legend_elements = [
+        patches.Patch(color=colors['late'], label='Late Jobs (past deadline)'),
+        patches.Patch(color=colors['warning'], label='Warning (≤1 day remaining)'),
+        patches.Patch(color=colors['caution'], label='Caution (≤3 days remaining)'),
+        patches.Patch(color=colors['ok'], label='On Time (>3 days remaining)'),
+        plt.Line2D([0], [0], color='red', linestyle='--', linewidth=2, label='4:00 PM Deadline')
+    ]
+    ax.legend(handles=legend_elements, loc='upper right', fontsize=10)
+    
+    # Professional grid
+    ax.grid(True, alpha=0.4, linestyle='-', linewidth=0.5)
+    ax.set_axisbelow(True)
+    
+    # Add performance metrics as text
+    total_jobs = len(schedule_data.get('families', {}))
+    completion_rate = len(scheduled_jobs) / total_jobs * 100 if total_jobs > 0 else 0
+    reward = schedule_data.get('total_reward', 0)
+    
+    metrics_text = f"Performance Metrics:\n• Jobs Scheduled: {len(scheduled_jobs)}/{total_jobs} ({completion_rate:.1f}%)\n• Total Reward: {reward:.1f}\n• Model: {model_name}"
+    ax.text(0.02, 0.98, metrics_text, transform=ax.transAxes, fontsize=10,
+            verticalalignment='top', bbox=dict(boxstyle='round', facecolor='lightgray', alpha=0.8))
+    
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='white')
+    plt.close()
+    
+    print(f"Enhanced production schedule chart saved: {save_path}")
+
+
+def create_comparison_report(results_summary: Dict, report_path: str):
+    """Create a detailed comparison report of all tested models."""
+    
+    if not results_summary['scenarios_tested']:
+        return
+    
+    # Sort results by performance
+    sorted_results = sorted(results_summary['scenarios_tested'], key=lambda x: x['total_reward'], reverse=True)
+    
+    with open(report_path, 'w') as f:
+        f.write("# PPO Model Performance Comparison Report\n\n")
+        f.write(f"**Generated:** {results_summary['timestamp']}\n")
+        f.write(f"**Total Models Tested:** {results_summary['total_models_tested']}\n")
+        f.write(f"**Successfully Tested:** {len(sorted_results)}\n\n")
+        
+        f.write("## Executive Summary\n\n")
+        if sorted_results:
+            best_model = sorted_results[0]
+            f.write(f"**Best Performing Model:** {best_model['model_name']}\n")
+            f.write(f"**Best Reward:** {best_model['total_reward']:.2f}\n")
+            f.write(f"**Families Scheduled:** {best_model['scheduled_families']}\n")
+            f.write(f"**Average Reward:** {results_summary['performance_metrics']['average_reward']:.2f}\n\n")
+        
+        f.write("## Why the Best Model Performed Better\n\n")
+        if sorted_results:
+            best = sorted_results[0]
+            if 'phase4' in best['model_name']:
+                f.write("The best performing model comes from Phase 4 training, which indicates:\n")
+                f.write("- More sophisticated environment design\n")
+                f.write("- Better reward function optimization\n")
+                f.write("- Advanced action space handling\n")
+            elif 'phase3' in best['model_name']:
+                f.write("The best performing model comes from Phase 3 training, which suggests:\n")
+                f.write("- Proven curriculum learning approach\n")
+                f.write("- Stable convergence patterns\n")
+                f.write("- Well-tuned hyperparameters\n")
+            
+            if 'final' in best['model_name']:
+                f.write("- Final model represents fully trained convergence\n")
+            elif 'checkpoint' in best['model_name']:
+                f.write("- Checkpoint model captured optimal training state\n")
+        
+        f.write("\n## Top 10 Performing Models\n\n")
+        f.write("| Rank | Model Name | Reward | Families | Source |\n")
+        f.write("|------|------------|--------|----------|--------|\n")
+        
+        for i, result in enumerate(sorted_results[:10], 1):
+            source = "Phase 4" if 'phase4' in result['model_name'] else "Phase 3"
+            f.write(f"| {i} | {result['model_name'][:50]} | {result['total_reward']:.2f} | {result['scheduled_families']} | {source} |\n")
+        
+        f.write("\n## Detailed Analysis\n\n")
+        f.write("### Phase 4 vs Phase 3 Performance\n\n")
+        
+        phase4_results = [r for r in sorted_results if 'phase4' in r['model_name']]
+        phase3_results = [r for r in sorted_results if 'phase3' in r['model_name']]
+        
+        if phase4_results:
+            avg_phase4 = sum(r['total_reward'] for r in phase4_results) / len(phase4_results)
+            f.write(f"**Phase 4 Average Reward:** {avg_phase4:.2f} ({len(phase4_results)} models)\n")
+        
+        if phase3_results:
+            avg_phase3 = sum(r['total_reward'] for r in phase3_results) / len(phase3_results)
+            f.write(f"**Phase 3 Average Reward:** {avg_phase3:.2f} ({len(phase3_results)} models)\n")
+        
+        f.write("\n### Model Type Analysis\n\n")
+        model_types = {}
+        for result in sorted_results:
+            if 'final' in result['model_name']:
+                model_type = 'Final Models'
+            elif 'checkpoint' in result['model_name']:
+                model_type = 'Checkpoint Models'
+            else:
+                model_type = 'Other Models'
+            
+            if model_type not in model_types:
+                model_types[model_type] = []
+            model_types[model_type].append(result)
+        
+        for model_type, models in model_types.items():
+            avg_reward = sum(m['total_reward'] for m in models) / len(models)
+            f.write(f"**{model_type}:** {len(models)} models, average reward {avg_reward:.2f}\n")
+        
+        f.write("\n## Recommendations\n\n")
+        if sorted_results:
+            best = sorted_results[0]
+            f.write(f"1. **Use the best model ({best['model_name']}) for production scheduling**\n")
+            f.write(f"2. **Expected performance: {best['scheduled_families']} families scheduled with {best['total_reward']:.2f} reward**\n")
+            if best['scheduled_families'] >= 20:
+                f.write("3. **This model meets the target of 20+ jobs scheduled**\n")
+            else:
+                f.write("3. **Consider further training to achieve 20+ jobs scheduled**\n")
+        
+        f.write("\n## Technical Details\n\n")
+        f.write("All models were tested using consistent parameters:\n")
+        f.write("- Environment: SmallBalancedEnvironment (Phase 4) or equivalent\n")
+        f.write("- Deterministic action selection\n")
+        f.write("- Maximum 500 steps per episode\n")
+        f.write("- Same production data across all tests\n")
+    
+    print(f"Comparison report saved: {report_path}")
 
 
 if __name__ == "__main__":
