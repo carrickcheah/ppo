@@ -325,99 +325,160 @@ def run_ppo_model_and_generate_schedule(model_path: str, env_class, max_steps: i
         return {}
 
 
+def discover_all_trained_models():
+    """Discover all available trained models in phase4 results."""
+    base_dir = '/Users/carrickcheah/Project/ppo/app_2/phase4/results'
+    models = []
+    
+    # Check small_balanced models
+    balanced_dir = os.path.join(base_dir, 'small_balanced')
+    if os.path.exists(balanced_dir):
+        # Final model
+        final_model = os.path.join(balanced_dir, 'small_balanced_final.zip')
+        if os.path.exists(final_model):
+            models.append({
+                'name': 'small_balanced_final',
+                'scenario': 'small_balanced',
+                'env_class': SmallBalancedEnvironment,
+                'model_path': final_model
+            })
+        
+        # Checkpoint models
+        checkpoints_dir = os.path.join(balanced_dir, 'checkpoints')
+        if os.path.exists(checkpoints_dir):
+            checkpoints = [f for f in os.listdir(checkpoints_dir) if f.endswith('.zip')]
+            # Test a few key checkpoints
+            key_checkpoints = ['small_balanced_checkpoint_500000_steps.zip', 
+                             'small_balanced_checkpoint_300000_steps.zip',
+                             'small_balanced_checkpoint_100000_steps.zip']
+            for checkpoint in key_checkpoints:
+                checkpoint_path = os.path.join(checkpoints_dir, checkpoint)
+                if os.path.exists(checkpoint_path):
+                    models.append({
+                        'name': f'small_balanced_{checkpoint.replace(".zip", "")}',
+                        'scenario': 'small_balanced',
+                        'env_class': SmallBalancedEnvironment,
+                        'model_path': checkpoint_path
+                    })
+    
+    # Check small_rush models
+    rush_dir = os.path.join(base_dir, 'small_rush')
+    if os.path.exists(rush_dir):
+        # Checkpoint models only (no final model yet)
+        checkpoints_dir = os.path.join(rush_dir, 'checkpoints')
+        if os.path.exists(checkpoints_dir):
+            key_checkpoints = ['small_rush_checkpoint_300000_steps.zip',
+                             'small_rush_checkpoint_200000_steps.zip',
+                             'small_rush_checkpoint_100000_steps.zip']
+            for checkpoint in key_checkpoints:
+                checkpoint_path = os.path.join(checkpoints_dir, checkpoint)
+                if os.path.exists(checkpoint_path):
+                    models.append({
+                        'name': f'small_rush_{checkpoint.replace(".zip", "")}',
+                        'scenario': 'small_rush', 
+                        'env_class': SmallRushEnvironment,
+                        'model_path': checkpoint_path
+                    })
+    
+    return models
+
+
 def main():
-    """Main function to test Phase 4 models and create visualizations."""
+    """Main function to test ALL Phase 4 models and create comprehensive visualizations."""
     
     print("="*80)
-    print("PHASE 4 PPO MODEL TESTING WITH GANTT VISUALIZATION")
+    print("PHASE 4 COMPREHENSIVE PPO MODEL TESTING WITH GANTT VISUALIZATION")
     print("="*80)
     
     # Initialize visualizer
     visualizer = Phase4ScheduleVisualizer()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    # Define scenarios and their corresponding models and environments
-    scenarios = [
-        {
-            'name': 'small_balanced',
-            'env_class': SmallBalancedEnvironment,
-            'model_path': '/Users/carrickcheah/Project/ppo/app_2/phase4/results/small_balanced/small_balanced_final.zip'
-        },
-        {
-            'name': 'small_rush',
-            'env_class': SmallRushEnvironment,
-            'model_path': '/Users/carrickcheah/Project/ppo/app_2/phase4/results/small_rush/checkpoints/small_rush_checkpoint_300000_steps.zip'
-        }
-    ]
+    # Discover all available trained models
+    print("Discovering all trained PPO models...")
+    scenarios = discover_all_trained_models()
+    print(f"Found {len(scenarios)} trained models to test")
     
-    # Define visualization directory
+    for i, scenario in enumerate(scenarios, 1):
+        print(f"  {i}. {scenario['name']} -> {scenario['model_path']}")
+    
+    # Define visualization directory and ensure it exists
     viz_dir = '/Users/carrickcheah/Project/ppo/app_2/visualizations/phase4'
+    os.makedirs(viz_dir, exist_ok=True)
     
     results_summary = {
         'timestamp': timestamp,
+        'total_models_tested': len(scenarios),
         'scenarios_tested': [],
-        'visualizations_created': []
+        'visualizations_created': [],
+        'performance_metrics': {
+            'best_reward': -float('inf'),
+            'best_model': None,
+            'average_reward': 0,
+            'models_compared': 0
+        }
     }
     
-    for scenario in scenarios:
-        print(f"\nTesting scenario: {scenario['name']}")
-        print("-" * 60)
+    total_rewards = []
+    
+    for i, scenario in enumerate(scenarios, 1):
+        print(f"\n[{i}/{len(scenarios)}] Testing model: {scenario['name']}")
+        print("-" * 70)
+        print(f"Scenario: {scenario['scenario']}")
+        print(f"Model: {scenario['model_path']}")
         
-        # Check if model exists
+        # Verify model exists
         if not os.path.exists(scenario['model_path']):
-            print(f"Model not found: {scenario['model_path']}")
-            
-            # Try alternative checkpoint models
-            checkpoint_dir = os.path.dirname(scenario['model_path'])
-            if 'checkpoints' not in checkpoint_dir:
-                checkpoint_dir = os.path.join(os.path.dirname(checkpoint_dir), scenario['name'], 'checkpoints')
-            
-            if os.path.exists(checkpoint_dir):
-                checkpoints = [f for f in os.listdir(checkpoint_dir) if f.endswith('.zip')]
-                if checkpoints:
-                    # Use the latest checkpoint
-                    latest_checkpoint = sorted(checkpoints)[-1]
-                    scenario['model_path'] = os.path.join(checkpoint_dir, latest_checkpoint)
-                    print(f"Using alternative model: {scenario['model_path']}")
-                else:
-                    print(f"No checkpoints found in {checkpoint_dir}")
-                    continue
-            else:
-                print(f"Checkpoint directory not found: {checkpoint_dir}")
-                continue
+            print(f"ERROR: Model not found: {scenario['model_path']}")
+            continue
         
         # Run PPO model to generate schedule
+        print("Running PPO model to generate schedule...")
         schedule_data = run_ppo_model_and_generate_schedule(
             scenario['model_path'], 
-            scenario['env_class']
+            scenario['env_class'],
+            max_steps=500  # Increased for better scheduling
         )
         
         if not schedule_data:
-            print(f"Failed to generate schedule for {scenario['name']}")
+            print(f"FAILED: Could not generate schedule for {scenario['name']}")
             continue
         
-        # Create visualizations
+        reward = schedule_data.get('total_reward', 0)
+        total_rewards.append(reward)
+        
+        # Track best performing model
+        if reward > results_summary['performance_metrics']['best_reward']:
+            results_summary['performance_metrics']['best_reward'] = reward
+            results_summary['performance_metrics']['best_model'] = scenario['name']
+        
+        # Create visualizations with model-specific naming
+        print("Creating Gantt chart visualizations...")
         
         # Job allocation chart
-        job_chart_path = os.path.join(viz_dir, f"phase4_{scenario['name']}_job_allocation_{timestamp}.png")
+        job_chart_path = os.path.join(viz_dir, f"phase4_{scenario['name']}_job_allocation.png")
         visualizer.create_job_allocation_chart(schedule_data, job_chart_path, scenario['name'])
         
         # Machine allocation chart
-        machine_chart_path = os.path.join(viz_dir, f"phase4_{scenario['name']}_machine_allocation_{timestamp}.png")
+        machine_chart_path = os.path.join(viz_dir, f"phase4_{scenario['name']}_machine_allocation.png")
         visualizer.create_machine_allocation_chart(schedule_data, machine_chart_path, scenario['name'])
         
         # Save schedule data
-        schedule_path = os.path.join(viz_dir, f"phase4_{scenario['name']}_schedule_{timestamp}.json")
+        schedule_path = os.path.join(viz_dir, f"phase4_{scenario['name']}_schedule.json")
         with open(schedule_path, 'w') as f:
             json.dump(schedule_data, f, indent=2)
         
         # Update results
         results_summary['scenarios_tested'].append({
-            'scenario': scenario['name'],
+            'model_name': scenario['name'],
+            'scenario': scenario['scenario'],
             'model_path': scenario['model_path'],
-            'total_reward': schedule_data.get('total_reward', 0),
+            'total_reward': reward,
             'steps_taken': schedule_data.get('steps_taken', 0),
-            'scheduled_families': len(schedule_data.get('families', {}))
+            'scheduled_families': len(schedule_data.get('families', {})),
+            'job_allocation_chart': job_chart_path,
+            'machine_allocation_chart': machine_chart_path,
+            'schedule_data': schedule_path
         })
         
         results_summary['visualizations_created'].extend([
@@ -426,25 +487,119 @@ def main():
             schedule_path
         ])
         
-        print(f"✓ Completed {scenario['name']} - Reward: {schedule_data.get('total_reward', 0):.1f}")
+        print(f"SUCCESS: {scenario['name']}")
+        print(f"  Reward: {reward:.2f}")
+        print(f"  Steps: {schedule_data.get('steps_taken', 0)}")
+        print(f"  Families: {len(schedule_data.get('families', {}))}")
+        print(f"  Charts: job_allocation, machine_allocation")
     
-    # Save summary
-    summary_path = os.path.join(viz_dir, f"phase4_test_summary_{timestamp}.json")
+    # Calculate performance metrics
+    if total_rewards:
+        results_summary['performance_metrics']['average_reward'] = sum(total_rewards) / len(total_rewards)
+        results_summary['performance_metrics']['models_compared'] = len(total_rewards)
+    
+    # Save comprehensive summary
+    summary_path = os.path.join(viz_dir, f"phase4_comprehensive_test_summary_{timestamp}.json")
     with open(summary_path, 'w') as f:
         json.dump(results_summary, f, indent=2)
     
-    print("\n" + "="*80)
-    print("PHASE 4 TESTING COMPLETED")
-    print("="*80)
-    print(f"Summary saved: {summary_path}")
-    print(f"Visualizations created: {len(results_summary['visualizations_created'])}")
-    print(f"Scenarios tested: {len(results_summary['scenarios_tested'])}")
+    # Create performance comparison visualization
+    create_performance_comparison_chart(results_summary, viz_dir, timestamp)
     
-    # Print file paths
-    print("\nGenerated Files:")
-    for file_path in results_summary['visualizations_created']:
-        print(f"  - {file_path}")
-    print(f"  - {summary_path}")
+    print("\n" + "="*80)
+    print("PHASE 4 COMPREHENSIVE TESTING COMPLETED")
+    print("="*80)
+    print(f"Models tested: {len(results_summary['scenarios_tested'])}/{len(scenarios)}")
+    print(f"Visualizations created: {len(results_summary['visualizations_created'])}")
+    print(f"Best model: {results_summary['performance_metrics']['best_model']}")
+    print(f"Best reward: {results_summary['performance_metrics']['best_reward']:.2f}")
+    print(f"Average reward: {results_summary['performance_metrics']['average_reward']:.2f}")
+    
+    # Print results by scenario
+    print("\nPERFORMANCE SUMMARY BY MODEL:")
+    print("-" * 70)
+    for result in sorted(results_summary['scenarios_tested'], key=lambda x: x['total_reward'], reverse=True):
+        print(f"  {result['model_name']:<40} | Reward: {result['total_reward']:>8.2f} | Families: {result['scheduled_families']:>3}")
+    
+    print("\nGENERATED VISUALIZATIONS:")
+    print("-" * 70)
+    for result in results_summary['scenarios_tested']:
+        print(f"\n{result['model_name']}:")
+        print(f"  Job Allocation:     {result['job_allocation_chart']}")
+        print(f"  Machine Allocation: {result['machine_allocation_chart']}")
+        print(f"  Schedule Data:      {result['schedule_data']}")
+    
+    print(f"\nSummary Report: {summary_path}")
+    
+    return results_summary
+
+
+def create_performance_comparison_chart(results_summary: Dict, viz_dir: str, timestamp: str):
+    """Create a performance comparison chart across all tested models."""
+    
+    if not results_summary['scenarios_tested']:
+        return
+    
+    # Extract data for plotting
+    model_names = []
+    rewards = []
+    families_scheduled = []
+    scenarios = []
+    
+    for result in sorted(results_summary['scenarios_tested'], key=lambda x: x['total_reward'], reverse=True):
+        model_names.append(result['model_name'].replace('small_', '').replace('_checkpoint', '\nchkpt'))
+        rewards.append(result['total_reward'])
+        families_scheduled.append(result['scheduled_families'])
+        scenarios.append(result['scenario'])
+    
+    # Create comparison chart
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 12))
+    
+    # Reward comparison
+    colors = ['#1f77b4' if 'balanced' in s else '#ff7f0e' for s in scenarios]
+    bars1 = ax1.bar(range(len(model_names)), rewards, color=colors, alpha=0.7)
+    ax1.set_xlabel('Models', fontsize=12)
+    ax1.set_ylabel('Total Reward', fontsize=12)
+    ax1.set_title('Phase 4 PPO Models - Reward Comparison', fontsize=14, fontweight='bold')
+    ax1.set_xticks(range(len(model_names)))
+    ax1.set_xticklabels(model_names, rotation=45, ha='right', fontsize=10)
+    ax1.grid(True, alpha=0.3)
+    
+    # Add value labels on bars
+    for bar, reward in zip(bars1, rewards):
+        ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(rewards)*0.01,
+                f'{reward:.1f}', ha='center', va='bottom', fontsize=9)
+    
+    # Families scheduled comparison
+    bars2 = ax2.bar(range(len(model_names)), families_scheduled, color=colors, alpha=0.7)
+    ax2.set_xlabel('Models', fontsize=12)
+    ax2.set_ylabel('Families Scheduled', fontsize=12)
+    ax2.set_title('Phase 4 PPO Models - Families Scheduled Comparison', fontsize=14, fontweight='bold')
+    ax2.set_xticks(range(len(model_names)))
+    ax2.set_xticklabels(model_names, rotation=45, ha='right', fontsize=10)
+    ax2.grid(True, alpha=0.3)
+    
+    # Add value labels on bars
+    for bar, count in zip(bars2, families_scheduled):
+        ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(families_scheduled)*0.01,
+                f'{count}', ha='center', va='bottom', fontsize=9)
+    
+    # Legend
+    legend_elements = [
+        patches.Patch(color='#1f77b4', alpha=0.7, label='Balanced Scenario'),
+        patches.Patch(color='#ff7f0e', alpha=0.7, label='Rush Scenario')
+    ]
+    ax1.legend(handles=legend_elements, loc='upper right')
+    
+    plt.tight_layout()
+    
+    # Save comparison chart
+    comparison_chart_path = os.path.join(viz_dir, f"phase4_model_performance_comparison_{timestamp}.png")
+    plt.savefig(comparison_chart_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    print(f"Performance comparison chart saved: {comparison_chart_path}")
+    results_summary['visualizations_created'].append(comparison_chart_path)
 
 
 if __name__ == "__main__":
