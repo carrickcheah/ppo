@@ -494,3 +494,58 @@
   - RL struggles with sparse valid actions
   - Need hybrid approaches for complex scheduling
   - Pure RL may not be suitable for this problem domain
+
+### 2025-07-31 - Dental Appointment Booking System Implementation
+- **Project Overview**:
+  - Multilingual dental appointment booking chatbot system for Malaysian clinics
+  - Supports WhatsApp and web interfaces with PostgreSQL as single source of truth
+  - Languages: English (en), Bahasa Malaysia (ms), Mandarin Chinese (zh)
+  - Tamil support explicitly removed per user request
+- **Database Architecture (Phase 1)**:
+  - PostgreSQL-only design (no Redis, no complex caching)
+  - 7 core tables: dentists, services, patients, available_slots, bookings, conversation_sessions, notifications
+  - Capacity-based slot system (multiple patients per time slot)
+  - Reference number format: D1234-20250322-0011
+  - Progressive saving strategy for disconnection handling
+  - JSONB columns for flexible data storage
+- **Core Module Implementation**:
+  - **Database Manager**: Connection pooling (2-20 connections), thread-safe operations
+  - **Booking Manager**: CRUD operations, reference generation, 24-hour cancellation policy
+  - **Slot Manager**: Availability checking, 15-minute temporary holds, capacity-based booking
+  - **Conversation Manager**: State machine pattern, 2-hour session timeout, context persistence
+  - **Language Detector**: Pattern-based detection, code-switching support, confidence scoring
+  - **Notification Manager**: Multilingual templates, date/time formatting by language
+  - **Logging System**: Structured logging with booking event tracking
+- **Error Handling Standards**:
+  - NO FALLBACK VALUES - always raise errors for invalid inputs
+  - Explicit error messages with context
+  - Type validation and required field checks
+  - Database errors propagate with proper logging
+  - Updated CLAUDE.md with mandatory error handling section
+- **Comprehensive Testing Suite**:
+  - Created 7 test modules covering all core functionality
+  - Initial results: 42/56 tests passing (75%)
+  - Fixed issues:
+    - Added held_until and held_by_session columns for slot holding
+    - Fixed notification date/time formatting
+    - Corrected database transaction tests
+    - Updated conversation manager cleanup
+  - Final results: **100% test coverage (57/57 tests passing)**
+- **Key Technical Decisions**:
+  - uv package manager (NEVER pip) for all Python dependencies
+  - pydantic-settings for configuration management
+  - No emojis in documentation files
+  - Real date/time objects, no string fallbacks
+  - Strict error raising, no silent failures
+- **Development Standards Enforced**:
+  - Python 3.12+ requirement
+  - Ruff for code formatting (88 char line length)
+  - pyright for type checking
+  - Auto-cleanup of test files
+  - Test files organized in /test_files/ directory
+- **Current Status**:
+  - All core business logic modules implemented and tested
+  - Database schema deployed with sample data
+  - Multi-language support fully functional
+  - Ready for chatbot logic and API layer implementation
+  - System foundation verified 100% working

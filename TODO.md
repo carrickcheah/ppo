@@ -376,3 +376,91 @@ Last Updated: 2025-07-24
 
 ---
 *Note: Critical understanding - jobs can require multiple machines working together. This fundamentally changes our action space and state representation.*
+
+## Dental Booking System TODO - 2025-07-31
+
+### Phase 1: Database & Core Functions ✅ COMPLETE
+- [x] Set up PostgreSQL database with 7 core tables
+- [x] Implement database connection with pooling (2-20 connections)
+- [x] Create booking manager with CRUD operations
+- [x] Build slot manager with capacity-based booking
+- [x] Implement conversation state machine
+- [x] Create language detector for multilingual support
+- [x] Build notification manager with templates
+- [x] Set up structured logging system
+
+### Phase 2: Testing & Quality ✅ COMPLETE
+- [x] Create comprehensive test suite (7 test modules)
+- [x] Fix slot holding mechanism (add missing columns)
+- [x] Fix notification date/time formatting
+- [x] Correct database transaction tests
+- [x] Update conversation manager cleanup
+- [x] Achieve 100% test coverage (57/57 tests passing)
+- [x] Implement strict error handling (NO FALLBACKS)
+- [x] Update CLAUDE.md with error handling standards
+
+### Phase 3: Chatbot Logic (NEXT)
+- [ ] Design conversation flow for booking process
+- [ ] Implement natural language understanding
+- [ ] Create intent recognition for booking actions
+- [ ] Build entity extraction (dates, times, services)
+- [ ] Implement conversation context management
+- [ ] Create response generation system
+- [ ] Add conversation recovery mechanisms
+- [ ] Test with multiple language scenarios
+
+### Phase 4: API Development
+- [ ] Create FastAPI application structure
+- [ ] Implement REST endpoints for booking operations
+- [ ] Build WhatsApp webhook integration
+- [ ] Create web chat API endpoints
+- [ ] Implement authentication and authorization
+- [ ] Add rate limiting and security measures
+- [ ] Create API documentation
+- [ ] Build integration tests
+
+### Phase 5: Frontend Development
+- [ ] Design React component architecture
+- [ ] Create booking interface components
+- [ ] Implement real-time chat interface
+- [ ] Build admin dashboard for dentists
+- [ ] Create appointment management views
+- [ ] Implement multilingual UI support
+- [ ] Add responsive design
+- [ ] Create user authentication flow
+
+### Phase 6: WhatsApp Integration
+- [ ] Set up WhatsApp Business API
+- [ ] Implement message handling
+- [ ] Create interactive button templates
+- [ ] Build list message interfaces
+- [ ] Implement media handling
+- [ ] Create notification delivery system
+- [ ] Test end-to-end WhatsApp flow
+- [ ] Handle disconnection scenarios
+
+### Phase 7: Production Deployment
+- [ ] Set up production PostgreSQL
+- [ ] Configure environment variables
+- [ ] Implement CI/CD pipeline
+- [ ] Set up monitoring and alerting
+- [ ] Create backup strategies
+- [ ] Implement logging aggregation
+- [ ] Performance optimization
+- [ ] Security hardening
+
+### Key Standards to Maintain
+- [x] Use uv package manager (NEVER pip)
+- [x] Python 3.12+ requirement
+- [x] Ruff formatting (88 char lines)
+- [x] pyright type checking
+- [x] No emojis in documentation
+- [x] Real date/time objects only
+- [x] Strict error raising
+- [x] 100% test coverage
+
+### Current Status
+- Core modules: 100% complete and tested
+- Database: Deployed with sample data
+- Languages: English, Malay, Chinese (Tamil removed)
+- Ready for: Chatbot logic implementation

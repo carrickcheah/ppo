@@ -260,7 +260,7 @@ events.out.tfevents.*
 
 # Image files (if you want to exclude them)
 *.png
-*.jpg
+*.jpgwant
 *.jpeg
 *.gif
 *.bmp
