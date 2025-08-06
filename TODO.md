@@ -1,466 +1,279 @@
-# Pure Deep Reinforcement Learning Scheduling System - TODO List
+# app3 - Simplified PPO Scheduling System TODO
 
-## Project Status: Phase 1, 1.5, 1.6, and 2 Complete - Ready for Phase 3 (Training)
-Last Updated: 2025-07-24
-**Objective: Build a pure DRL scheduler that learns everything from experience, like AI learning to play a game**
+## Project Overview
+Build a simplified PPO-based scheduling system using pre-assigned machines from real production data. The system learns to select which task to schedule next while respecting sequence constraints and machine availability.
 
-## Core Principles
-- You control the game rules (when to play, what machines exist)
-- PPO model focuses only on playing the game (which job on which machine)
-- No hardcoded strategies - everything learned through rewards
-- Simple interface: Raw data in → Schedule out
+## Current Data Assets ✅
+- **10_jobs.json**: 34 tasks, 10 families (training stage 1)
+- **20_jobs.json**: 65 tasks, 20 families (training stage 2) 
+- **40_jobs.json**: 130 tasks, 40 families (training stage 3)
+- **60_jobs.json**: 195 tasks, 60 families (training stage 4)
+- **100_jobs.json**: 327 tasks, 100 families (training stage 5)
+- **200_jobs.json**: 650+ tasks, 200 families (training stage 6)
+- **500_jobs.json**: 1600+ tasks, 500 families (production scale)
+- All data from MariaDB with real job IDs (JOST, JOTP, JOPRD prefixes)
 
-## Phase 1: Foundation - Build the Game Environment (Week 1) ✅ COMPLETE
+## Phase 1: Environment Implementation ✅ COMPLETE
 
-### Step 1: Database Connection Layer ✅
-- [x] Create simple MariaDB connector in `/app_2/src/data/`
-- [x] Query pending jobs: job_id, family_id, sequence, machine_types, processing_time, lcd_date, is_important
-- [x] Query machines: machine_id, machine_type
-- [x] No validation, just raw data extraction
+### Core Environment
+- [x] Create `src/environments/scheduling_env.py`
+  - [x] Gym-compatible interface
+  - [x] State representation (task_ready, machine_busy, urgency)
+  - [x] Discrete action space (select task index)
+  - [x] Step function with constraint checking
+  - [x] Reset function for new episodes
 
-### Step 2: Define Game Rules Engine ✅
-- [x] Hard Rule 1: Sequence checker (must follow 1→2→3 within family)
-- [x] Hard Rule 2: Machine requirements (must use ALL specified machines simultaneously)
-- [x] Hard Rule 3: No time overlap (one job per machine)
-- [x] ~Hard Rule 4: Working hours~ (REMOVED - deployment only, not training)
+### Constraint Validator
+- [x] Create `src/environments/constraint_validator.py`
+  - [x] Sequence constraint checking (1/3 → 2/3 → 3/3)
+  - [x] Machine availability validation
+  - [x] Material arrival date checking
+  - [x] No duplicate scheduling prevention
+  - [x] Action masking generation
 
-### Step 3: Create Gymnasium Environment ✅
-- [x] Build `SchedulingGameEnv` class
-- [x] State: [jobs_status, machines_load, current_time, time_until_deadline]
-- [x] Action: MultiDiscrete([n_jobs, n_machines])
-- [x] Valid action masking (only show legal moves)
+### Reward Calculator
+- [x] Create `src/environments/reward_calculator.py`
+  - [x] On-time completion reward (+100)
+  - [x] Early completion bonus (+50 * days_early)
+  - [x] Late penalty (-100 * days_late)
+  - [x] Sequence violation penalty (-500)
+  - [x] Machine utilization bonus (+10 * utilization)
+  - [ ] Configurable weights via YAML (params work, YAML pending)
 
-### Step 4: Implement Reward Function ✅
-- [x] On-time completion: +100
-- [x] Late delivery: -200
-- [x] Important job bonus: +50
-- [x] Sequence violation penalty: -500 (discovered after family complete)
-- [x] Makespan efficiency: +10 per hour saved
+### Data Loader
+- [x] Create `src/data/snapshot_loader.py`
+  - [x] Load JSON snapshots
+  - [x] Parse families and tasks
+  - [x] Extract machine assignments
+  - [x] Calculate urgency scores
+  - [x] Handle material arrival dates
 
-### Step 5: Database Integration & Testing ✅
-- [x] Update DBConnector for actual schema mapping
-- [x] Test connection and data fetching (233 jobs, 145 machines)
-- [x] Parse job families from DocRef_v field
-- [x] Extract machine compatibility from Machine_v field
-- [x] Handle complex working hours and break schedules
+### Environment Tests
+- [x] Create `tests/test_environment.py`
+  - [x] Test constraint validation
+  - [x] Test reward calculation
+  - [x] Test action masking
+  - [x] Test episode completion
+  - [x] Test with 10_jobs.json
 
-## Phase 1.5: Data Pipeline Fixes ✅ COMPLETE (2025-07-24)
+## Phase 2: PPO Model Development 📋
 
-### Data Processing Corrections
-- [x] Fix processing time calculation: (JoQty_d / (CapQty_d * 60)) + (SetupTime_d / 60)
-- [x] Parse Machine_v as list of ALL required machines (simultaneous occupation)
-- [x] Use IsImportant column from tbl_jo_txn (not DifficultyLevel)
-- [x] Generate proper job_id: DocRef_v + Task_v
-- [x] Remove CycleTime_d (always 0, not used)
-- [x] Test with real multi-machine jobs
+### PPO Agent
+- [ ] Create `src/models/ppo_scheduler.py`
+  - [ ] PPO algorithm implementation
+  - [ ] Clipped objective function
+  - [ ] Generalized Advantage Estimation (GAE)
+  - [ ] Experience collection
+  - [ ] Model update logic
 
-## Phase 1.6: Environment Updates ✅ COMPLETE (2025-07-24)
+### Neural Networks
+- [ ] Create `src/models/networks.py`
+  - [ ] Policy network (MLP: 256-128-64)
+  - [ ] Value network (shared backbone)
+  - [ ] Action masking layer
+  - [ ] Forward pass implementation
+  - [ ] Parameter initialization
 
-### Multi-Machine Handling
-- [x] Update environment to handle multi-machine occupation
-- [x] Fix rules engine to check ALL required machines are free
-- [x] Update action execution to block ALL required machines
-- [x] Implement proper action masking for multi-machine constraints
-- [x] Remove working hours from training environment
-- [x] Test with jobs requiring 5+ machines simultaneously
+### Training Components
+- [ ] Create `src/models/rollout_buffer.py`
+  - [ ] Experience storage
+  - [ ] Advantage computation
+  - [ ] Batch generation
+  - [ ] Buffer reset logic
 
-## Phase 2: Build the PPO Player (Week 2) ✅ COMPLETE (2025-07-24)
+### Model Tests
+- [ ] Create `tests/test_ppo.py`
+  - [ ] Test network forward pass
+  - [ ] Test action masking
+  - [ ] Test loss computation
+  - [ ] Test gradient flow
 
-### Step 1: Design Flexible State Representation ✅
-- [x] Attention mechanism for variable number of jobs (10 to 1000+)
-- [x] Job encoding: [sequence_progress, urgency, processing_time, type_embedding]
-- [x] Machine encoding: [current_load, type, utilization_rate]
-- [x] No fixed size limits
+## Phase 3: Training Pipeline 📋
 
-### Step 2: Implement PPO Architecture ✅
-- [x] TransformerEncoder for jobs and machines
-- [x] Actor network: Outputs action probabilities
-- [x] Critic network: Estimates state value
-- [x] Action masking layer: Only valid moves
+### Main Training Script
+- [ ] Create `src/training/train.py`
+  - [ ] Training loop implementation
+  - [ ] Episode rollout
+  - [ ] Model updates
+  - [ ] Checkpoint saving
+  - [ ] Tensorboard logging
+  - [ ] Early stopping logic
 
-### Step 3: Configure Training Pipeline ✅
-- [x] Vectorized environments for parallel training
-- [x] Experience buffer implementation
-- [x] Hyperparameters: lr=3e-4, batch_size=64, n_epochs=10
-- [x] Entropy coefficient: 0.01 (encourage exploration)
+### Curriculum Manager
+- [ ] Create `src/training/curriculum_trainer.py`
+  - [ ] Stage 1: 10 jobs (100k steps)
+  - [ ] Stage 2: 20 jobs (100k steps)
+  - [ ] Stage 3: 40 jobs (100k steps)
+  - [ ] Stage 4: 60 jobs (100k steps)
+  - [ ] Stage 5: 100 jobs (100k steps)
+  - [ ] Stage 6: 200+ jobs (100k steps)
+  - [ ] Performance-based progression (>80% success)
+  - [ ] Model transfer between stages
 
-### Step 4: Create Training Loop ✅
-- [x] Collect experiences through gameplay
-- [x] Calculate advantages
-- [x] Update policy and value networks
-- [x] Track metrics: reward, makespan, on-time rate
+### Training Utilities
+- [ ] Create `src/training/utils.py`
+  - [ ] Learning rate scheduling
+  - [ ] Performance tracking
+  - [ ] Model checkpointing
+  - [ ] Tensorboard setup
 
-## Phase 3: Training - Let it Learn to Play (Week 3) ✅ COMPLETE (2025-07-25)
+## Phase 4: Evaluation & Visualization 📋
 
-### Step 1: Data Preparation & Enhancement ✅ COMPLETE
-- [x] Create multiple data snapshots (rush orders, normal, heavy load)
-- [x] Generate 109 job snapshot with extended planning horizon (REAL DATA)
-- [x] Create 16 curriculum stage variations using REAL production data
-- [x] Prepare multi-machine scenarios from actual database
+### Evaluation Script
+- [ ] Create `src/evaluation/evaluate.py`
+  - [ ] Load trained models
+  - [ ] Run evaluation episodes
+  - [ ] Calculate metrics:
+    - [ ] Constraint satisfaction rate
+    - [ ] On-time delivery rate
+    - [ ] Machine utilization
+    - [ ] Average makespan
+    - [ ] Schedule quality score
 
-### Step 2: Extended Curriculum Learning (16 stages) ✅ IMPLEMENTED
-#### Foundation Training (100k timesteps) ✅ IMPLEMENTED & TESTED
-- [x] Toy Easy: 5 jobs, 3 machines - Learn sequence rules (Achieved: 100%)
-- [x] Toy Normal: 10 jobs, 5 machines - Learn deadlines (Best: 56.2%)
-- [x] Toy Hard: 15 jobs, 5 machines - Learn priorities (Best: 30%)
-- [x] Toy Multi: 10 jobs, 8 machines - Learn multi-machine (Best: 36.4%)
+### Baseline Comparisons
+- [ ] Create `src/evaluation/baselines.py`
+  - [ ] FIFO scheduler
+  - [ ] Earliest Due Date (EDD)
+  - [ ] Shortest Processing Time (SPT)
+  - [ ] Random scheduler
+  - [ ] Performance comparison
 
-#### Strategy Development (200k timesteps) ✅ PHASE 4 CREATED
-- [x] Small Balanced: 20 jobs, 12 machines - Balance objectives
-- [x] Small Rush: 20 jobs, 12 machines - Handle urgency 
-- [x] Small Bottleneck: 20 jobs, 10 machines - Manage constraints
-- [x] Small Complex: 20 jobs, 12 machines - Complex dependencies
+### Visualization Tools
+- [ ] Create `src/visualization/gantt_chart.py`
+  - [ ] Job-view Gantt chart
+  - [ ] Machine-view Gantt chart
+  - [ ] Color coding (on-time, late, urgent)
+  - [ ] Save to `visualizations/` directory
 
-#### Scale Training (300k timesteps)
-- [ ] Medium Normal: 150 jobs, 40 machines
-- [ ] Medium Stress: 200 jobs, 50 machines
-- [ ] Large Intro: 300 jobs, 75 machines
-- [ ] Large Advanced: 400 jobs, 100 machines
+- [ ] Create `src/visualization/training_plots.py`
+  - [ ] Reward curves
+  - [ ] Performance metrics over time
+  - [ ] Stage progression visualization
+  - [ ] Loss curves
 
-#### Production Mastery (400k timesteps)
-- [ ] Production Warmup: 295 jobs, 145 machines (normal load)
-- [ ] Production Rush: 295 jobs, 145 machines (urgent orders)
-- [ ] Production Heavy: 500 jobs, 145 machines (overload)
-- [ ] Production Expert: 500 jobs, 145 machines (mixed scenarios)
+## Phase 5: Configuration Management 📋
 
-### Step 3: Specialized Training Activities
-#### Scenario Variations
-- [ ] Deadline pressure training (all urgent, cascading delays)
-- [ ] Machine failure simulation (10% down, critical failures)
-- [ ] Load pattern training (steady, burst, seasonal, chaotic)
-- [ ] Adversarial scenarios (worst-case situations)
+### Environment Config
+- [ ] Create `configs/environment.yaml`
+  ```yaml
+  planning_horizon: 720  # hours (30 days)
+  time_step: 1  # hour
+  max_steps_per_episode: 1000
+  ```
 
-#### Multi-Objective Training
-- [ ] Rotate reward profiles every 50k steps
-- [ ] Deadline-focused vs efficiency-focused training
-- [ ] Importance-aware reward shaping
-- [ ] Create adaptable behavior across objectives
+### Training Config
+- [ ] Create `configs/training.yaml`
+  ```yaml
+  learning_rate: 3e-4
+  batch_size: 64
+  n_epochs: 10
+  clip_range: 0.2
+  entropy_coef: 0.01
+  value_loss_coef: 0.5
+  max_grad_norm: 0.5
+  ```
 
-### Step 4: Advanced Training Techniques
-#### Hyperparameter Schedule
-- [ ] Dynamic learning rate: 5e-4 → 5e-5 over training
-- [ ] Entropy decay: 0.02 → 0.001 for exploration → exploitation
-- [ ] Clip range adjustment based on KL divergence
+### Reward Config
+- [ ] Create `configs/reward.yaml`
+  ```yaml
+  on_time_reward: 100
+  early_bonus_per_day: 50
+  late_penalty_per_day: -100
+  sequence_violation: -500
+  utilization_bonus: 10
+  ```
 
-#### Ensemble Training
-- [ ] Train 3 models with different seeds
-- [ ] Compare different architectures
-- [ ] Test ensemble decisions
-- [ ] Select best performer
+### Data Config
+- [ ] Create `configs/data.yaml`
+  ```yaml
+  stage_1_data: "data/10_jobs.json"
+  stage_2_data: "data/20_jobs.json"
+  stage_3_data: "data/40_jobs.json"
+  stage_4_data: "data/60_jobs.json"
+  stage_5_data: "data/100_jobs.json"
+  stage_6_data: "data/200_jobs.json"
+  ```
 
-### Step 5: Continuous Evaluation & Improvement
-#### Benchmark Testing (every 25k steps)
-- [ ] Test against FIFO, EDD, SPT, Critical Ratio
-- [ ] Run stress tests (1000 jobs, 200 machines)
-- [ ] Measure constraint violations, on-time rate, makespan
-- [ ] Document performance progression
+## Phase 6: Integration & Deployment 📋
 
-#### Weakness Detection & Retraining
-- [ ] Identify failure patterns
-- [ ] Create targeted scenarios for weaknesses
-- [ ] Implement continuous improvement loop
-- [ ] Log discovered strategies
+### API Development
+- [ ] Create `src/api/scheduler_api.py`
+  - [ ] FastAPI application
+  - [ ] POST /schedule endpoint
+  - [ ] Model loading
+  - [ ] Request validation
+  - [ ] Response formatting
 
-### Step 6: Monitoring & Analysis
-#### Real-Time Monitoring
-- [ ] Live dashboard with training metrics
-- [ ] Strategy logger for interesting behaviors
-- [ ] Performance tracker with alerts
-- [ ] Training diary documentation
+### Docker Setup
+- [ ] Create `Dockerfile`
+- [ ] Create `docker-compose.yml`
+- [ ] Create `requirements.txt`
+- [ ] Create `.env.example`
 
-#### Analysis Reports
-- [ ] Daily training summaries
-- [ ] Breakthrough moment documentation
-- [ ] Failure analysis and fixes
-- [ ] Emergent strategy catalog
+### Documentation
+- [ ] Create `README.md` with setup instructions
+- [ ] Create `docs/API.md` with endpoint docs
+- [ ] Create `docs/TRAINING.md` with training guide
+- [ ] Create `docs/EVALUATION.md` with metrics explanation
 
-### Success Criteria
-#### Minimum Requirements
-- [ ] 95% constraint satisfaction
+## Success Criteria ✅
+
+### Performance Targets
+- [ ] 95% constraint satisfaction rate
 - [ ] 85% on-time delivery rate
-- [ ] Handle 500+ jobs smoothly
-- [ ] <100ms inference time
+- [ ] <1 second inference for 100 jobs
+- [ ] >60% machine utilization
+- [ ] Better than FIFO baseline by 20%
 
-#### Excellence Targets
-- [ ] 98% constraint satisfaction
-- [ ] 95% on-time delivery
-- [ ] Optimal makespan (within 5% theoretical best)
-- [ ] Discover novel scheduling strategies
+### Training Milestones
+- [ ] Stage 1 convergence in <50k steps
+- [ ] Successful curriculum progression
+- [ ] Stable training without divergence
+- [ ] Consistent performance across stages
 
-## Phase 4: Deployment - Simple API (Week 4)
+### Code Quality
+- [ ] All tests passing
+- [ ] Type hints on all functions
+- [ ] Docstrings for all classes/methods
+- [ ] No hardcoded values (use configs)
+- [ ] Following CLAUDE.md guidelines
 
-### Working Hours Filter (NEW)
-- [ ] Apply working hours as post-processing filter
-- [ ] Shift jobs to valid time windows
-- [ ] Maintain optimized sequence from model
-- [ ] Different hours per day (Mon-Thu, Fri, Sat)
-- [ ] Handle break times (lunch, tea, maintenance)
+## Implementation Timeline
 
-### Step 1: Create Inference Server
-- [ ] Build FastAPI server at `/app_2/src/api/`
-- [ ] Single endpoint: POST /schedule
-- [ ] Input: Raw jobs from database
-- [ ] Output: Complete schedule with timings
+### Week 1
+- Day 1-2: Environment implementation
+- Day 3-4: PPO model development
+- Day 5: Testing and debugging
 
-### Step 2: Connect to Front2
-- [ ] Ensure API returns same format as current system
-- [ ] No changes needed in frontend
-- [ ] Real-time scheduling (<1 second for 1000 jobs)
-- [ ] Test with existing visualization
+### Week 2
+- Day 1-2: Training pipeline
+- Day 3-4: Curriculum training
+- Day 5: Evaluation tools
 
-### Step 3: Production Testing
-- [ ] Start with small batches
-- [ ] Compare with current system
-- [ ] Measure improvements
-- [ ] Gather feedback
+### Week 3
+- Day 1-2: Visualization
+- Day 3: API development
+- Day 4: Documentation
+- Day 5: Final testing
 
-### Step 4: Continuous Learning Setup
-- [ ] Save production schedules
-- [ ] Retrain weekly with real data
-- [ ] Model improves over time
-- [ ] Track performance metrics
+## Current Status: 📍 Phase 1 Complete, Ready for Phase 2 (PPO Model)
 
-## Phase 5: Pure AI Evolution (Week 5+)
+### Completed Today (2025-08-06):
+- ✅ Full environment implementation with all core components
+- ✅ Data loader handling real production data 
+- ✅ Constraint validator with action masking
+- ✅ Reward calculator with configurable weights
+- ✅ Gym-compatible scheduling environment
+- ✅ Successfully tested with 10_jobs.json (34 tasks, 145 machines)
+- ✅ Project setup with dependencies installed
 
-### Step 1: Remove Training Wheels
-- [ ] Reduce reward shaping gradually
-- [ ] Let model discover more strategies
-- [ ] Trust the learning process
-- [ ] Document emergent behaviors
-
-### Step 2: Advanced Architectures
-- [ ] Experiment with larger transformers
-- [ ] Try graph neural networks
-- [ ] Explore hierarchical policies
-- [ ] Test multi-agent systems
-
-### Step 3: Performance Optimization
-- [ ] Optimize inference speed
-- [ ] Reduce memory footprint
-- [ ] Implement model quantization
-- [ ] Edge deployment options
-
-### Step 4: Document AI Discoveries
-- [ ] Strategies humans never tried
-- [ ] Unexpected optimizations
-- [ ] New scheduling patterns
-- [ ] Lessons learned
-
-## Completed Components ✅
-
-### Environment Structure
-```
-/app_2/
-├── src/
-│   ├── environment/
-│   │   ├── scheduling_game_env.py    # Game rules and physics ✅
-│   │   ├── rules_engine.py           # Hard constraints ✅
-│   │   └── reward_function.py        # Soft preferences ✅
-│   ├── model/
-│   │   ├── ppo_scheduler.py          # PPO player (Phase 2)
-│   │   ├── transformer_policy.py     # Neural architecture (Phase 2)
-│   │   └── action_masking.py         # Valid moves only (Phase 2)
-│   ├── training/
-│   │   ├── train.py                  # Main training loop (Phase 3)
-│   │   ├── curriculum.py             # Progressive difficulty (Phase 3)
-│   │   └── evaluate.py               # Performance testing (Phase 3)
-│   ├── data/
-│   │   ├── db_connector.py           # MariaDB interface ✅
-│   │   └── data_loader.py            # Job/machine loading ✅
-│   └── api/
-│       ├── server.py                 # FastAPI application (Phase 4)
-│       └── models.py                 # Request/response schemas (Phase 4)
-├── configs/
-│   ├── environment.yaml              # Game settings ✅
-│   ├── training.yaml                 # Hyperparameters ✅
-│   └── deployment.yaml               # Production config ✅
-└── tests/
-    ├── test_environment.py           # Rule validation ✅
-    ├── test_db_connection.py         # Database testing ✅
-    ├── test_model.py                 # Architecture tests (Phase 2)
-    └── test_api.py                   # Integration tests (Phase 4)
-```
-
-## Success Metrics
-- [ ] Handle 1000+ jobs without batching
-- [ ] Learn sequence constraints without being told
-- [ ] Discover priority patterns from LCD dates
-- [ ] Achieve 95%+ on-time delivery through learning alone
-- [ ] Zero hardcoded scheduling rules in final system
-- [ ] API response time <1 second
-- [ ] 25%+ improvement over manual scheduling
-
-## Current Issues to Fix 🔧
-
-### Small Rush 0% Utilization Problem ✅ FIXED
-- **Issue**: Model learns to do nothing (0% utilization) to avoid penalties
-- **Root Cause**: Reward structure penalizes late jobs more than idle time
-- **Fixes Applied**:
-  - [x] Add completion bonus (+50.0 per job) to reward function
-  - [x] Add action bonus (+5.0) for taking any valid action
-  - [x] Reduce late penalty magnitude for rush stages
-  - [x] Increase entropy coefficient to 0.05 in curriculum config
-  - [x] Create "rush_order" reward profile that tolerates some lateness
-  - [x] Fix observation space by proper environment creation per stage
-
-## Timeline Summary
-- **Week 1**: Build game environment with rules ✅ COMPLETE
-- **Week 1.5**: Refine data processing & environment ✅ COMPLETE (2025-07-24)
-- **Week 2**: Create PPO player architecture ✅ COMPLETE (2025-07-24)
-- **Week 3**: Train model to play the game 📋 NEXT
-- **Week 4**: Deploy simple API
-- **Week 5+**: Let AI evolve and discover
-
-## Next Immediate Actions
-1. ~~Set up `/app_2/` project structure~~ ✅
-2. ~~Create database connection to fetch real jobs~~ ✅
-3. ~~Build minimal game environment with rules~~ ✅
-4. ~~Implement simple reward function~~ ✅
-5. ~~Test with 10 jobs manually to verify rules~~ ✅
-6. ~~Connect to production database and test~~ ✅
-7. ~~Fix db_connector.py with correct processing time formula~~ ✅ (2025-07-24)
-8. ~~Parse Machine_v as multi-machine requirements~~ ✅ (2025-07-24)
-9. ~~Update environment for multi-machine handling~~ ✅ (2025-07-24)
-10. ~~Design transformer architecture for variable job sizes~~ ✅ (2025-07-24)
-11. ~~Implement PPO algorithm with action masking~~ ✅ (2025-07-24)
-12. ~~Create training loop with curriculum learning~~ ✅ (2025-07-24)
-13. ~~Run comprehensive tests on all components~~ ✅ (2025-07-24)
-14. ~~Create Phase 3 with REAL production data~~ ✅ (2025-07-25)
-15. ~~Implement curriculum environment with fixes~~ ✅ (2025-07-25)
-16. ~~Build training and evaluation tools~~ ✅ (2025-07-25)
-17. ~~Extensive toy stage training to 80%~~ ✅ (2025-07-28) - Best: 56.2%
-18. ~~Try action masking, reward engineering~~ ✅ (2025-07-28) - Made worse
-19. ~~Create Phase 4 strategy environments~~ ✅ (2025-07-28)
-20. **NEXT**: Train Phase 4 strategy environments
-21. **NEXT**: Consider hybrid approaches (RL + heuristics)
-22. **NEXT**: Deploy best performing models
-
-## Key Insights from Discussion
-- **Multi-Machine Jobs**: Machine_v="57,64,65,66,74" means job needs ALL 5 machines simultaneously
-- **Processing Time**: Use capacity formula when CapMin_d=1: (JoQty_d/(CapQty_d*60)) + (SetupTime_d/60)
-- **Working Hours**: Apply as filter during deployment, not in training
-- **Constraints**: Hard (sequence, machines, overlap) vs Soft (deadlines, importance, efficiency)
-
-## Phase 3 Results & Lessons Learned (2025-07-28)
-### Toy Stage Performance
-- **toy_easy**: 100% (perfect - simple enough for RL)
-- **toy_normal**: 56.2% (best achieved, target was 80%)
-- **toy_hard**: 30% (significant gap from 80% target)
-- **toy_multi**: 36.4% (multi-machine complexity)
-
-### Failed Approaches That Made It Worse
-1. **Action Masking (MaskablePPO)**: 25% vs baseline 56.2%
-   - Flattened action space lost structure
-   - Model couldn't learn hierarchical decisions
-2. **Better Rewards**: Negative total rewards
-   - Model learned to do nothing
-   - Risk avoidance dominated behavior
-3. **Schedule All Environment**: 31.2%
-   - Model memorized sequences instead of learning
-   - Got stuck on invalid actions
-4. **Simple Penalty Reduction**: 12.5%
-   - Model repeatedly tried invalid actions
-   - Couldn't recover from mistakes
-
-### Key Discoveries
-- **Sparse Valid Actions**: Only ~10% of actions are valid
-- **Sequential Dependencies**: Order matters critically
-- **Impossible Jobs**: Some jobs have deadlines shorter than processing time
-- **Model Behavior**: Tends to get stuck trying invalid actions after completing families
-
-### Recommendations
-- Pure RL may not be suitable for complex scheduling
-- Consider hybrid approaches (RL for high-level, rules for low-level)
-- Hierarchical RL might help (job selection → machine assignment)
-- Imitation learning from discovered optimal sequences
+### Test Results:
+- Environment working correctly with proper constraint enforcement
+- Action masking preventing invalid actions
+- Rewards calculating properly (90.91% early completion in test)
+- Ready for PPO model integration
 
 ---
-*Note: Critical understanding - jobs can require multiple machines working together. This fundamentally changes our action space and state representation.*
 
-## Dental Booking System TODO - 2025-07-31
-
-### Phase 1: Database & Core Functions ✅ COMPLETE
-- [x] Set up PostgreSQL database with 7 core tables
-- [x] Implement database connection with pooling (2-20 connections)
-- [x] Create booking manager with CRUD operations
-- [x] Build slot manager with capacity-based booking
-- [x] Implement conversation state machine
-- [x] Create language detector for multilingual support
-- [x] Build notification manager with templates
-- [x] Set up structured logging system
-
-### Phase 2: Testing & Quality ✅ COMPLETE
-- [x] Create comprehensive test suite (7 test modules)
-- [x] Fix slot holding mechanism (add missing columns)
-- [x] Fix notification date/time formatting
-- [x] Correct database transaction tests
-- [x] Update conversation manager cleanup
-- [x] Achieve 100% test coverage (57/57 tests passing)
-- [x] Implement strict error handling (NO FALLBACKS)
-- [x] Update CLAUDE.md with error handling standards
-
-### Phase 3: Chatbot Logic (NEXT)
-- [ ] Design conversation flow for booking process
-- [ ] Implement natural language understanding
-- [ ] Create intent recognition for booking actions
-- [ ] Build entity extraction (dates, times, services)
-- [ ] Implement conversation context management
-- [ ] Create response generation system
-- [ ] Add conversation recovery mechanisms
-- [ ] Test with multiple language scenarios
-
-### Phase 4: API Development
-- [ ] Create FastAPI application structure
-- [ ] Implement REST endpoints for booking operations
-- [ ] Build WhatsApp webhook integration
-- [ ] Create web chat API endpoints
-- [ ] Implement authentication and authorization
-- [ ] Add rate limiting and security measures
-- [ ] Create API documentation
-- [ ] Build integration tests
-
-### Phase 5: Frontend Development
-- [ ] Design React component architecture
-- [ ] Create booking interface components
-- [ ] Implement real-time chat interface
-- [ ] Build admin dashboard for dentists
-- [ ] Create appointment management views
-- [ ] Implement multilingual UI support
-- [ ] Add responsive design
-- [ ] Create user authentication flow
-
-### Phase 6: WhatsApp Integration
-- [ ] Set up WhatsApp Business API
-- [ ] Implement message handling
-- [ ] Create interactive button templates
-- [ ] Build list message interfaces
-- [ ] Implement media handling
-- [ ] Create notification delivery system
-- [ ] Test end-to-end WhatsApp flow
-- [ ] Handle disconnection scenarios
-
-### Phase 7: Production Deployment
-- [ ] Set up production PostgreSQL
-- [ ] Configure environment variables
-- [ ] Implement CI/CD pipeline
-- [ ] Set up monitoring and alerting
-- [ ] Create backup strategies
-- [ ] Implement logging aggregation
-- [ ] Performance optimization
-- [ ] Security hardening
-
-### Key Standards to Maintain
-- [x] Use uv package manager (NEVER pip)
-- [x] Python 3.12+ requirement
-- [x] Ruff formatting (88 char lines)
-- [x] pyright type checking
-- [x] No emojis in documentation
-- [x] Real date/time objects only
-- [x] Strict error raising
-- [x] 100% test coverage
-
-### Current Status
-- Core modules: 100% complete and tested
-- Database: Deployed with sample data
-- Languages: English, Malay, Chinese (Tamil removed)
-- Ready for: Chatbot logic implementation
+*Last Updated: 2025-08-06*
+*Following CLAUDE.md guidelines: Real data only, PPO only, no hardcoded logic*
