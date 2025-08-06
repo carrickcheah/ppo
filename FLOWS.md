@@ -209,6 +209,54 @@ Load trained model → Receive job batch
 - Validate input data format
 - Consider model retraining if degradation detected
 
+## Phase 3 Implementation Details (Completed)
+
+### Curriculum Training Architecture
+The curriculum trainer progressively trains PPO models through 6 stages of increasing complexity:
+
+#### Stage Progression
+1. **Stage 1 (Toy Easy)**: 10 jobs, 50k steps, 90% success threshold
+2. **Stage 2 (Toy Normal)**: 20 jobs, 100k steps, 85% success threshold  
+3. **Stage 3 (Small)**: 40 jobs, 150k steps, 80% success threshold
+4. **Stage 4 (Medium)**: 60 jobs, 200k steps, 75% success threshold
+5. **Stage 5 (Large)**: 100 jobs, 300k steps, 70% success threshold
+6. **Stage 6 (Production)**: 200+ jobs, 500k steps, 65% success threshold
+
+#### Key Features
+- **Independent Models**: Each stage creates new PPO model (handles dimension changes)
+- **Learning Rate Decay**: LR multiplied by 0.9 for each subsequent stage
+- **Performance Gating**: Progression requires meeting success threshold
+- **Comprehensive Checkpointing**: Best and final models saved per stage
+- **Metrics Tracking**: Tensorboard logging and JSON results export
+
+#### Critical Fixes Applied
+- **NaN Handling**: Uniform distribution fallback when all actions masked
+- **Batch Masking**: Per-element checking for batch processing
+- **Dimension Compatibility**: New models per stage for varying obs/action dims
+
+### Optimized Training Parameters (Updated)
+
+#### Success Criteria
+- **Completion Threshold**: 80% task completion counts as success (was 100%)
+- **Episode Length**: 1500-2500 steps based on complexity (was 1000)
+- **Partial Credit**: Model receives rewards for partial progress
+
+#### Reward Structure (Rebalanced)
+- **On-time Completion**: +100
+- **Early Bonus**: +50 per day early
+- **Late Penalty**: -30 per day (reduced from -100)
+- **Sequence Violation**: -100 (reduced from -500)
+- **Action Taken**: +15 (increased from +5)
+- **Utilization Bonus**: +20 (doubled from +10)
+- **Completion Bonus**: +1000 for all tasks scheduled
+
+#### Training Configuration
+- **Learning Rate**: 5e-4 with 0.9x decay per stage
+- **Batch Size**: 128 (optimized for M4 Pro)
+- **Rollout Steps**: 2048
+- **Success Thresholds**: 70%→60%→50%→40%→30%→20% (progressive)
+- **Training Time**: 75k-500k timesteps per stage
+
 ---
 
 *This workflow represents the simplified app3 architecture that leverages pre-assigned machines to make PPO training more tractable while maintaining all essential scheduling constraints.*

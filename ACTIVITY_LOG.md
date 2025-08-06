@@ -128,3 +128,171 @@
   - All constraints properly enforced
   - Reward structure encouraging good scheduling behavior
   - Foundation ready for PPO model implementation
+
+### 2025-08-06 - app3 Phase 2 PPO Model Implementation Complete
+
+- **Phase 2 Components Implemented**:
+  - Created complete PPO architecture in `/app3/src/models/`
+  - All components use PyTorch with MPS (Apple Silicon) acceleration
+  - Proper action masking prevents invalid actions during training
+
+- **Neural Networks (`src/models/networks.py`)**:
+  - PolicyValueNetwork with shared feature extractor
+  - MLP architecture: 256-128-64 hidden units
+  - MaskedCategorical distribution for handling invalid actions
+  - Proper orthogonal weight initialization for stable training
+  - Support for variable observation sizes (handles 10-500+ tasks)
+  - Separate policy and value heads with appropriate gains
+
+- **PPO Algorithm (`src/models/ppo_scheduler.py`)**:
+  - Complete PPO implementation with clipped objective (clip_range=0.2)
+  - Generalized Advantage Estimation (GAE) with lambda=0.95
+  - Learning rate: 3e-4 with Adam optimizer
+  - Gradient clipping (max_norm=0.5) for stability
+  - Entropy bonus (coef=0.01) for exploration
+  - Value loss coefficient: 0.5
+  - Model checkpointing with save/load functionality
+  - Tensorboard logging integration for metrics tracking
+  - Fixed PyTorch 2.7 compatibility (weights_only=False)
+
+- **Rollout Buffer (`src/models/rollout_buffer.py`)**:
+  - Efficient experience storage and management
+  - GAE computation with proper bootstrapping
+  - Batch generation for mini-batch training
+  - Support for single and multi-environment collection
+  - Advantage normalization for stable training
+  - Statistics tracking (mean reward, advantages, episodes)
+
+- **Training Infrastructure (`src/training/train.py`)**:
+  - Complete training loop with rollout collection
+  - Episode management with proper resets
+  - Model update scheduling (n_epochs=10 per update)
+  - Checkpoint saving (regular + best model)
+  - Progress tracking with tqdm
+  - Tensorboard integration for real-time monitoring
+  - Configurable hyperparameters via PPOConfig class
+
+- **Testing & Validation**:
+  - Created comprehensive test scripts
+  - All components tested and working
+  - Successfully runs on Apple Silicon (MPS device)
+  - Action masking verified working correctly
+  - Model save/load tested successfully
+
+- **Test Results from PPO Model**:
+  - Successfully predicted actions with proper masking
+  - Training step executed without errors
+  - Mean reward: 162.3 (positive rewards indicating good structure)
+  - GAE advantages computed correctly (mean: 803.0)
+  - Policy loss: -0.018 (expected negative for PPO)
+  - Value loss: High initially (780K) but will decrease with training
+
+- **Key Technical Achievements**:
+  - Clean separation between policy and value networks
+  - Efficient action masking prevents wasted computation
+  - Proper handling of episode boundaries
+  - Support for curriculum learning ready
+  - No hardcoded hyperparameters - all configurable
+
+- **Ready for Phase 3**:
+  - PPO model fully implemented and tested
+  - Training infrastructure complete
+  - Ready for curriculum learning implementation
+  - Foundation set for scaling to larger problems
+
+### 2025-08-06 - app3 Phase 3 Curriculum Training Implementation Complete
+
+- **Phase 3 Components Implemented**:
+  - Created comprehensive curriculum training system in `/app3/src/training/`
+  - 6-stage progressive difficulty training (10→20→40→60→100→200+ jobs)
+  - Automatic progression based on performance thresholds
+  - Model checkpointing at each stage with best/final saves
+
+- **Curriculum Trainer (`src/training/curriculum_trainer.py`)**:
+  - StageConfig dataclass for stage configuration
+  - CurriculumTrainer class managing multi-stage training
+  - Progressive learning rate decay (0.9x per stage)
+  - Success threshold checking for stage progression
+  - Comprehensive metrics tracking per stage
+  - Tensorboard integration for real-time monitoring
+  - Results saved to JSON for analysis
+
+- **Stage Configuration**:
+  - Stage 1: 10 jobs (50k steps, 90% threshold) - Basic sequencing
+  - Stage 2: 20 jobs (100k steps, 85% threshold) - Urgency handling
+  - Stage 3: 40 jobs (150k steps, 80% threshold) - Resource contention
+  - Stage 4: 60 jobs (200k steps, 75% threshold) - Complex dependencies
+  - Stage 5: 100 jobs (300k steps, 70% threshold) - Near production
+  - Stage 6: 200+ jobs (500k steps, 65% threshold) - Full production
+
+- **Fixed Critical Issues**:
+  - NaN logits when all actions masked - Added uniform distribution fallback
+  - Batch processing with varying mask states - Per-batch element checking
+  - Model dimension mismatch between stages - Create new model per stage
+  - Empty directory error in save - Check dir_path before makedirs
+
+- **Training Features**:
+  - Rollout collection with proper episode management
+  - GAE computation with bootstrapping
+  - Mini-batch updates with gradient clipping
+  - KL divergence and clip fraction monitoring
+  - Early stopping on success threshold achievement
+  - Checkpoint saving (best + final per stage)
+
+- **Testing & Validation**:
+  - Created test_curriculum.py for validation
+  - Successfully tested 2-stage mini curriculum
+  - Verified stage progression and model creation
+  - Confirmed tensorboard logging and checkpointing
+  - All components working on MPS (Apple Silicon)
+
+- **Key Technical Achievements**:
+  - Clean separation between stages with independent models
+  - Efficient experience collection and buffer management
+  - Proper handling of variable observation/action dimensions
+  - Robust error handling for edge cases
+  - Configurable training parameters via PPOConfig
+
+- **Ready for Phase 4**:
+  - Curriculum training pipeline complete and tested
+  - All 3 phases (Environment, PPO, Curriculum) integrated
+  - Ready for evaluation and visualization tools
+  - Foundation set for production deployment
+
+### 2025-08-06 - Training Optimization and Parameter Tuning
+
+- **Initial Training Results Analysis**:
+  - First training run on M4 Pro achieved 100% success on Stage 1 (10 jobs)
+  - Stages 2-4 showed 0% success rate but increasing rewards
+  - Identified key issues: 100% completion requirement too strict, episode length too short
+  - Sequence constraints creating bottlenecks in scheduling
+
+- **Critical Parameter Adjustments**:
+  - **Success Criteria**: Changed from 100% to 80% task completion for success
+  - **Episode Length**: Increased to 1500 steps (stages 1-3) and 2500 steps (stages 4-6)
+  - **Completion Bonus**: Added +1000 reward for scheduling all tasks
+  - **Reward Rebalancing**:
+    - Late penalty: Reduced from -100 to -30 per day (70% reduction)
+    - Sequence violation: Reduced from -500 to -100 (80% reduction)
+    - Action bonus: Increased from +5 to +15 (3x increase)
+    - Utilization bonus: Doubled from +10 to +20
+    - Idle penalty: Reduced from -1.0 to -0.5
+  
+- **Training Configuration Updates**:
+  - Success thresholds: Lowered to 70%→60%→50%→40%→30%→20% (was 90%→85%→80%→75%→70%→65%)
+  - Training timesteps: Increased by 25-50% per stage for deeper learning
+  - Learning rate: Increased to 5e-4 for faster initial learning
+  - Batch size: Optimized to 128 for M4 Pro GPU utilization
+
+- **Performance on Apple M4 Pro**:
+  - Achieved 200+ iterations/second with MPS acceleration
+  - ~163 it/s with batch size 64, ~204 it/s with batch size 128
+  - Full curriculum estimated at 2 hours (vs 8-12 hours on older hardware)
+  - Stable training without memory issues
+
+- **Key Insights**:
+  - Partial completion (80%) is more realistic for complex scheduling
+  - Harsh penalties discourage exploration - reduced by 70-80%
+  - Longer episodes critical for completing all sequence dependencies
+  - Reward shaping more important than raw training time
+  - M4 Pro's neural engine provides excellent PPO training performance

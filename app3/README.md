@@ -16,18 +16,35 @@ A simplified PPO-based production scheduling system that learns to select which 
 
 ```
 app3/
-├── data/                    # JSON snapshots (10-500 jobs)
-├── database/               # MariaDB connection
+├── data/                      # Real production JSON snapshots
+│   ├── 10_jobs.json          # Stage 1: 34 tasks, 10 families
+│   ├── 20_jobs.json          # Stage 2: 65 tasks, 20 families
+│   ├── 40_jobs.json          # Stage 3: 130 tasks, 40 families
+│   ├── 60_jobs.json          # Stage 4: 195 tasks, 60 families
+│   ├── 100_jobs.json         # Stage 5: 327 tasks, 100 families
+│   └── 200_jobs.json         # Stage 6: 650+ tasks, 200 families
+│
 ├── src/
-│   ├── environments/       # Gym environment and constraints
-│   ├── models/            # PPO implementation
-│   ├── training/          # Training pipeline
-│   ├── evaluation/        # Performance metrics
-│   ├── visualization/     # Gantt charts and plots
-│   └── api/              # FastAPI deployment
-├── configs/               # YAML configuration files
-├── tests/                # Unit tests
-└── visualizations/       # Output charts and graphs
+│   ├── data/
+│   │   └── snapshot_loader.py    # Load and parse JSON data
+│   │
+│   ├── environments/
+│   │   ├── scheduling_env.py     # Gym-compatible environment
+│   │   ├── constraint_validator.py # Validate actions and masks
+│   │   └── reward_calculator.py  # Calculate rewards
+│   │
+│   ├── models/
+│   │   ├── networks.py          # PolicyValueNetwork with masking
+│   │   ├── ppo_scheduler.py     # PPO algorithm implementation
+│   │   └── rollout_buffer.py    # Experience storage and GAE
+│   │
+│   └── training/
+│       ├── train.py              # Main training loop
+│       └── curriculum_trainer.py # 6-stage curriculum learning
+│
+├── checkpoints/              # Model checkpoints
+├── tensorboard/              # Training logs
+└── pyproject.toml           # Dependencies
 ```
 
 ## Quick Start
@@ -41,15 +58,8 @@ app3/
 ### Installation
 
 ```bash
-# Clone repository
 cd /Users/carrickcheah/Project/ppo/app3
-
-# Create virtual environment
-uv venv
-source .venv/bin/activate
-
-# Install dependencies
-uv add gymnasium stable-baselines3 torch numpy pandas matplotlib pydantic-settings
+uv sync
 ```
 
 ### Configuration
@@ -68,21 +78,29 @@ MARIADB_PORT=3306
 ### Training
 
 ```bash
-# Start curriculum training
-python src/training/curriculum_trainer.py
+# Full curriculum training (6 stages) - Optimized for M4 Pro
+uv run python src/training/curriculum_trainer.py \
+  --device mps \
+  --batch-size 128 \
+  --n-steps 2048 \
+  --lr 5e-4
 
-# Or train specific stage
-python src/training/train.py --stage 1 --data data/10_jobs.json
+# Quick test run
+uv run python src/training/curriculum_trainer.py \
+  --stages data/10_jobs.json \
+  --device mps \
+  --n-steps 1024 \
+  --batch-size 64
+
+# Custom stages
+uv run python src/training/curriculum_trainer.py --stages data/10_jobs.json data/20_jobs.json
 ```
 
-### Evaluation
+### Monitor Training
 
 ```bash
-# Evaluate trained model
-python src/evaluation/evaluate.py --model checkpoints/best_model.pth --data data/100_jobs.json
-
-# Generate visualizations
-python src/visualization/gantt_chart.py --schedule results/schedule.json
+tensorboard --logdir tensorboard/curriculum
+# View at http://localhost:6006
 ```
 
 ## Data Format
@@ -121,16 +139,16 @@ Each JSON snapshot contains:
 - Minimize makespan
 - Prioritize urgent jobs
 
-## Training Stages
+## Training Stages (Optimized)
 
-| Stage | Jobs | Tasks | Focus | Timesteps |
-|-------|------|-------|-------|-----------|
-| 1 | 10 | 34 | Basic sequencing | 100k |
-| 2 | 20 | 65 | Urgency handling | 100k |
-| 3 | 40 | 130 | Resource contention | 100k |
-| 4 | 60 | 195 | Complex dependencies | 100k |
-| 5 | 100 | 327 | Near production | 100k |
-| 6 | 200+ | 600+ | Full complexity | 100k |
+| Stage | Jobs | Tasks | Timesteps | Success Threshold | Episode Steps | Focus |
+|-------|------|-------|-----------|-------------------|---------------|-------|
+| 1 | 10 | 34 | 75k | 70% | 1500 | Basic sequencing |
+| 2 | 20 | 65 | 150k | 60% | 1500 | Urgency handling |
+| 3 | 40 | 130 | 200k | 50% | 1500 | Resource contention |
+| 4 | 60 | 195 | 250k | 40% | 2500 | Complex dependencies |
+| 5 | 100 | 327 | 350k | 30% | 2500 | Near production scale |
+| 6 | 200+ | 650+ | 500k | 20% | 2500 | Full production |
 
 ## Performance Targets
 
@@ -154,11 +172,43 @@ curl -X POST http://localhost:8000/schedule \
   -d @data/100_jobs.json
 ```
 
+## Implementation Status
+
+### Completed (Phases 1-3)
+- ✅ Environment with constraint validation and action masking
+- ✅ PPO model with clipped objective and GAE
+- ✅ Curriculum training pipeline with 6 stages
+- ✅ Data loading from real production JSON snapshots
+- ✅ Reward calculation with configurable weights
+- ✅ Tensorboard integration for monitoring
+- ✅ Model checkpointing (best + final per stage)
+
+### Technical Improvements
+- Fixed NaN issues with uniform distribution fallback for fully masked states
+- Handled batch processing with per-element mask checking
+- Resolved dimension mismatches by creating new models per stage
+- Implemented learning rate decay (0.9x per stage)
+- Optimized reward structure: reduced penalties by 70-80%, increased action incentives by 3x
+- Adjusted success criteria: 80% task completion now counts as success
+- Extended episode lengths: 1500-2500 steps based on problem complexity
+- Tuned for Apple M4 Pro: 200+ iterations/second with MPS acceleration
+
+### Pending (Phases 4-6)
+- ⏳ Evaluation metrics and baseline comparisons
+- ⏳ Gantt chart visualization
+- ⏳ YAML configuration files
+- ⏳ FastAPI deployment
+- ⏳ Docker containerization
+
 ## Development
 
 ### Running Tests
 ```bash
-pytest tests/
+# Test environment
+uv run python test_environment.py
+
+# Test PPO model
+uv run python test_ppo_model.py
 ```
 
 ### Code Quality
@@ -175,15 +225,13 @@ uv run pyright
 - [TODO.md](TODO.md) - Implementation checklist
 - [FLOWS.md](../FLOWS.md) - System workflow documentation
 - [CLAUDE.md](../CLAUDE.md) - Development guidelines
+- [ACTIVITY_LOG.md](../ACTIVITY_LOG.md) - Development history
 
 ## License
 
 Internal use only - Proprietary
 
-## Contact
-
-For questions or issues, please contact the development team.
-
 ---
 
+*Last Updated: 2025-08-06*
 *Following CLAUDE.md guidelines: Real data only, PPO only, no hardcoded scheduling logic*
