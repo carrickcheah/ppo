@@ -4,74 +4,89 @@
 
 The PPO scheduling system uses deep reinforcement learning to optimize production scheduling. This document outlines the complete workflow from data ingestion to schedule visualization.
 
-**Current Status**: Phase 4 Strategy Development Created. Phase 3 training revealed RL limitations (best: 56.2% vs 80% target). Created 4 strategy environments for focused testing. Ready for Phase 4 training.
+## app3 - Simplified PPO Scheduling System
 
-## Pure DRL Scheduling Workflow (Updated Architecture)
+### Overview
+- **Simplified action space**: Select which task to schedule next (not job-machine pairs)
+- **Pre-assigned machines**: 94% of tasks have specific machine assignments from database
+- **Clean constraints**: Sequence, availability, material arrival only
+- **Real production data**: JSON snapshots with 10-500 job families
 
-```mermaid
-graph TB
-    %% Data Sources
-    DB[(MariaDB)]
-    
-    %% Game Environment (Training)
-    ENV[Game Environment]
-    RULES[Rules Engine]
-    REWARD[Reward Function]
-    
-    %% PPO Model
-    PPO[PPO Player]
-    TRANS[Transformer Policy]
-    MASK[Action Masking]
-    
-    %% Deployment
-    API[FastAPI Server]
-    WH[Working Hours Filter]
-    FRONT[Front2 React]
-    
-    %% Data Flow
-    DB -->|Jobs & Machines| ENV
-    ENV -->|State| PPO
-    PPO -->|Action| ENV
-    ENV -->|Reward| PPO
-    RULES -->|Valid Moves| MASK
-    MASK -->|Legal Actions| PPO
-    TRANS -->|Neural Network| PPO
-    
-    %% Deployment Flow
-    PPO -->|Trained Model| API
-    API -->|Raw Schedule| WH
-    WH -->|Filtered Schedule| FRONT
-    
-    %% Feedback Loop
-    ENV -.->|Experience| PPO
+### Data Structure
+```json
+{
+  "families": {
+    "JOST25060084": {
+      "tasks": [
+        {
+          "sequence": 1,
+          "process_name": "CP08-056-1/2",
+          "processing_time": 75.48,
+          "assigned_machine": "PP09-160T-C-A1"  // Pre-assigned
+        }
+      ]
+    }
+  },
+  "machines": ["PP09-160T-C-A1", "WH01A-PK", ...]  // 145 machines
+}
 ```
 
-## Constraint Categories
+### Constraint Implementation
 
-### Hard Constraints (Environment Physics)
-1. **Sequence Within Family**
-   - Jobs like "1/4", "2/4", "3/4" must execute in order
-   - Enforced through `is_available` state
+#### 1. Sequence Constraints (Hard)
+- Tasks within family must complete in order (1/3 → 2/3 → 3/3)
+- Cannot start sequence N+1 until sequence N is completed
+- Tracked via family_completion_status dictionary
 
-2. **Machine Requirements**
-   - Jobs MUST use machines specified in `Machine_v`
-   - Single: "80" → occupies machine 80
-   - Multiple: "57,64,65,66,74" → occupies ALL 5 machines simultaneously
-   - No alternatives allowed
+#### 2. Machine Assignment (Hard)
+- Tasks with `assigned_machine`: Must use that specific machine
+- Tasks without `assigned_machine` (6% only): Can use any available machine
+- One task per machine at a time
+- Machine availability tracked via timeline
 
-3. **No Time Overlap**
-   - A machine cannot process multiple jobs simultaneously
-   - Multi-machine jobs block ALL their required machines
+#### 3. Material Availability (Hard)
+- Cannot schedule before `material_arrival` date
+- Validated during action masking
+- Prevents infeasible schedules
 
-### Soft Constraints (Learned Through Rewards)
-1. **Meet Deadlines** - Higher reward for on-time completion
-2. **Prioritize Important Jobs** - Bonus for `IsImportant=1` jobs
-3. **Efficiency** - Minimize total makespan
-4. **Load Balancing** - Distribute work evenly
+### Action Space & Masking
+```python
+# Action = index of task to schedule next
+action_space = gym.spaces.Discrete(n_tasks)
 
-### Deployment Constraints (Applied at Runtime)
-- **Working Hours** - Only schedule during factory operating hours
-- Applied as post-processing filter, not part of training
+# Valid action criteria:
+- Task not already scheduled
+- Previous sequence in family completed
+- Assigned machine is available (or any machine if unassigned)
+- Current time >= material_arrival
+```
+
+### Reward Structure
+- **On-time completion**: +100
+- **Early completion bonus**: +50 * days_early
+- **Late penalty**: -100 * days_late
+- **Sequence violation**: -500 (should never happen with masking)
+- **Utilization bonus**: +10 * machine_utilization_rate
+
+### Training Pipeline
+
+#### Curriculum Learning Stages
+```
+Stage 1: 10 jobs (34 tasks) - Learn basic sequencing
+Stage 2: 20 jobs (65 tasks) - Handle urgency
+Stage 3: 40 jobs (130 tasks) - Resource contention
+Stage 4: 60 jobs (195 tasks) - Complex dependencies
+Stage 5: 100 jobs (327 tasks) - Near production scale
+Stage 6: 200+ jobs (600+ tasks) - Full production complexity
+```
+
+#### PPO Configuration
+- **Network**: MLP (256-128-64 units)
+- **Learning rate**: 3e-4
+- **Batch size**: 64
+- **Entropy coefficient**: 0.01
+- **Clip range**: 0.2
+- **Training timesteps**: 100k per stage
 
 ## Data Processing Pipeline
 
@@ -81,174 +96,104 @@ tbl_jo_txn + tbl_jo_process → Raw Job Data
               ↓
     Calculate Processing Time:
     If CapMin_d = 1 and CapQty_d > 0:
-        hours = (JoQty_d / (CapQty_d * 60)) + (SetupTime_d / 60)
+        hours = (JoQty_d / (CapQty_d * 60)) + SetupTime_d
               ↓
-    Parse Machine Requirements:
-    Machine_v = "57,64,65,66,74" → required_machines = [57,64,65,66,74]
+    Extract Machine Assignment:
+    Machine_v → assigned_machine_name (via tbl_machine lookup)
               ↓
-    Create Job Object with all constraints
+    Create JSON Snapshot with families and tasks
 ```
 
 ### 2. Environment State Representation
-```
-For each job:
-- is_available: Can it be scheduled? (sequence check)
-- urgency_score: How close to deadline?
-- processing_time: Duration in hours
-- is_important: Priority flag
-- required_machines: List of ALL machines needed
-
-For each machine:
-- is_occupied: Currently processing?
-- time_until_free: When available?
-- current_job: What's running?
+```python
+state = {
+    'task_ready': [0/1 for each task],      # Can be scheduled?
+    'machine_busy': [0/1 for each machine],  # Currently occupied?
+    'time_progress': current_time / horizon,  # Normalized time
+    'urgency_scores': days_to_lcd / max_lcd, # Deadline pressure
+    'sequence_progress': completed / total    # Family completion
+}
 ```
 
-### 3. Action Space & Masking
-```
-Action = (job_index, primary_machine_index)
-
-Valid only if:
-- Job is available (sequence satisfied)
-- ALL required machines are free
-- No constraint violations
-
-When action taken:
-- Block ALL required machines
-- Update machine schedules
-- Mark job as scheduled
+### 3. Action Execution
+```python
+def step(action):
+    task = tasks[action]
+    if task.assigned_machine:
+        machine = task.assigned_machine
+    else:
+        machine = find_available_machine()
+    
+    schedule_task_on_machine(task, machine)
+    update_family_status(task.family)
+    calculate_reward()
 ```
 
 ## Training Workflow
 
-### Phase 1: Data Pipeline
-- Implement correct processing time formula
-- Parse multi-machine requirements
-- Connect to production database
+### Phase 1: Environment Setup
+- Create Gym-compatible scheduling environment
+- Implement constraint validation
+- Build reward calculator
+- Test with smallest dataset (10_jobs.json)
 
-### Phase 2: Environment Setup
-- Handle multi-machine occupation
-- Remove working hours (training assumes 24/7)
-- Implement proper action masking
+### Phase 2: PPO Implementation
+- Build policy and value networks
+- Implement PPO algorithm with clipping
+- Add action masking layer
+- Create rollout buffer
 
-### Phase 3: Model Architecture
-```
-Input: Variable number of jobs (10-1000+)
-         ↓
-Job Features Extraction (6 features per job)
-         ↓
-Machine Features Extraction (3 features per machine)
-         ↓
-Global State Features (5 features)
-         ↓
-MLP Policy Network
-         ↓
-Policy Head → Action probabilities
-Value Head → State value estimate
-```
+### Phase 3: Curriculum Training
+- Start with Stage 1 (10 jobs)
+- Train 100k timesteps per stage
+- Progress when performance > 80%
+- Save best model after each stage
 
-### Phase 4: Curriculum Learning (16 Stages)
-```
-Foundation Training (Stages 1-4): ✅ TESTED
-- Toy environments: 5-15 jobs, 3-8 machines
-- Uses REAL job IDs (JOAW, JOST, JOTP) and machine names
-- Results: toy_easy 100%, toy_normal 56.2%, toy_hard 30%, toy_multi 36.4%
-- Gap to 80% target revealed RL limitations
-
-Strategy Development (Stages 5-8): ✅ CREATED (Phase 4)
-- Small scale: 20 jobs, 10-12 machines (adjusted from data availability)
-- Four focused scenarios:
-  - Small Balanced: General scheduling test
-  - Small Rush: Urgent deadline handling
-  - Small Bottleneck: Resource constraint management  
-  - Small Complex: Multi-machine job coordination
-- Custom reward structures per scenario
-- All using REAL production data subsets
-
-Scale Training (Stages 9-12): 📋 PENDING
-- Medium to large scale: 80-109 jobs, 40-100 machines
-- Depends on Phase 4 results
-
-Production Mastery (Stages 13-16): 📋 PENDING
-- Full scale: 109 jobs, 145 machines
-- Requires successful smaller scale training
-```
+### Phase 4: Evaluation
+- Test on held-out data
+- Compare against FIFO baseline
+- Generate Gantt charts
+- Calculate metrics (utilization, on-time rate, makespan)
 
 ## Deployment Workflow
 
 ### 1. Inference Pipeline
 ```
-Receive job request → Load trained model
-                   → Create environment
-                   → Run PPO inference
-                   → Get raw schedule (24/7)
-                   → Apply working hours filter
-                   → Return valid schedule
+Load trained model → Receive job batch
+                  → Create environment
+                  → Run episode to completion
+                  → Extract schedule
+                  → Return JSON response
 ```
 
-### 2. Working Hours Filter
-```python
-# Post-process schedule for actual factory hours
-for scheduled_job in raw_schedule:
-    if not in_working_hours(scheduled_job.start_time):
-        shift_to_next_valid_window(scheduled_job)
-```
-
-## Key Improvements from Previous Version
-
-1. **Multi-Machine Understanding**: Jobs can require multiple machines simultaneously
-2. **Correct Processing Time**: Using capacity-based formula from production
-3. **Working Hours Separation**: Training on 24/7, filtering at deployment
-4. **No Hardcoded Strategies**: Pure learning from experience
-5. **100% Real Production Data**: All training uses actual job IDs and machine names from MariaDB
-6. **Fixed Reward Structure**: Completion bonuses prevent "do nothing" behavior
-7. **Machine ID Mapping**: Handles non-sequential database IDs correctly
-
-## Phase 3 Findings & Lessons Learned
-
-### What Worked
-- Simple PPO achieved 56.2% on toy_normal (best result)
-- Environment correctly handles real production data
-- Multi-machine job scheduling functions properly
-- Training infrastructure stable and scalable
-
-### What Failed (Made Performance Worse)
-1. **Action Masking**: 25% (vs 56.2% baseline)
-   - Lost action space structure when flattening
-2. **Reward Engineering**: Negative rewards, 0% scheduling
-   - Model preferred doing nothing over risk
-3. **Schedule All Environment**: 31.2%
-   - Model memorized sequences, got stuck on invalid actions
-4. **Simple Penalty Reduction**: 12.5%
-   - Model repeatedly tried invalid actions
-
-### Root Causes Identified
-- Only ~10% of random actions are valid
-- Sequential dependencies create cascading constraints
-- Some jobs have impossible deadlines (158h work, 144h deadline)
-- Model gets stuck trying invalid actions after completing families
-- Pure RL struggles with combinatorial optimization
-
-### Phase 4 Response
-Created focused strategy environments to test specific scheduling challenges:
-- Balanced workloads vs resource constraints
-- Urgent deadlines vs complex dependencies
-- Each with tailored reward structures
-- Progressive difficulty to identify RL capabilities
+### 2. API Integration
+- FastAPI endpoint: POST /schedule
+- Input: Job families with tasks
+- Output: Scheduled tasks with start/end times
+- Response time: <1 second for 100 jobs
 
 ## Performance Monitoring
 
 ### Training Metrics
-- Episode rewards
-- Constraint violations (should → 0)
+- Episode reward progression
+- Constraint violation rate (should be 0%)
 - Average makespan
 - On-time delivery rate
+- Machine utilization
 
 ### Production Metrics
 - Schedule generation time (<1 second)
 - Real on-time delivery rate
 - Machine utilization rates
 - Comparison with current scheduler
+
+## Key Simplifications in app3
+
+1. **No capable_machines complexity**: Tasks have specific assigned machines
+2. **Simplified action space**: Select task, not job-machine pair
+3. **Pre-processed data**: JSON snapshots ready for training
+4. **Focused constraints**: Only essential scheduling rules
+5. **Clean architecture**: Separate concerns (env, model, training, eval)
 
 ## Emergency Procedures
 
@@ -261,9 +206,9 @@ Created focused strategy environments to test specific scheduling challenges:
 ### Performance Issues
 - Monitor inference time
 - Check constraint satisfaction
-- Validate data pipeline
-- Consider retraining if needed
+- Validate input data format
+- Consider model retraining if degradation detected
 
 ---
 
-*This workflow represents pure deep reinforcement learning scheduling where all strategies emerge from experience, with production constraints respected through proper environment design.*
+*This workflow represents the simplified app3 architecture that leverages pre-assigned machines to make PPO training more tractable while maintaining all essential scheduling constraints.*

@@ -1,0 +1,3 @@
+REAL DATA MODE ENFORCED
+Snapshot: data/real_production_snapshot.json
+Any attempt to use synthetic data will raise an error

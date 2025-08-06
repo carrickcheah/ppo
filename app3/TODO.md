@@ -1,0 +1,264 @@
+# app3 - Simplified PPO Scheduling System TODO
+
+## Project Overview
+Build a simplified PPO-based scheduling system using pre-assigned machines from real production data. The system learns to select which task to schedule next while respecting sequence constraints and machine availability.
+
+## Current Data Assets ✅
+- **10_jobs.json**: 34 tasks, 10 families (training stage 1)
+- **20_jobs.json**: 65 tasks, 20 families (training stage 2) 
+- **40_jobs.json**: 130 tasks, 40 families (training stage 3)
+- **60_jobs.json**: 195 tasks, 60 families (training stage 4)
+- **100_jobs.json**: 327 tasks, 100 families (training stage 5)
+- **200_jobs.json**: 650+ tasks, 200 families (training stage 6)
+- **500_jobs.json**: 1600+ tasks, 500 families (production scale)
+- All data from MariaDB with real job IDs (JOST, JOTP, JOPRD prefixes)
+
+## Phase 1: Environment Implementation 📋
+
+### Core Environment
+- [ ] Create `src/environments/scheduling_env.py`
+  - [ ] Gym-compatible interface
+  - [ ] State representation (task_ready, machine_busy, urgency)
+  - [ ] Discrete action space (select task index)
+  - [ ] Step function with constraint checking
+  - [ ] Reset function for new episodes
+
+### Constraint Validator
+- [ ] Create `src/environments/constraint_validator.py`
+  - [ ] Sequence constraint checking (1/3 → 2/3 → 3/3)
+  - [ ] Machine availability validation
+  - [ ] Material arrival date checking
+  - [ ] No duplicate scheduling prevention
+  - [ ] Action masking generation
+
+### Reward Calculator
+- [ ] Create `src/environments/reward_calculator.py`
+  - [ ] On-time completion reward (+100)
+  - [ ] Early completion bonus (+50 * days_early)
+  - [ ] Late penalty (-100 * days_late)
+  - [ ] Sequence violation penalty (-500)
+  - [ ] Machine utilization bonus (+10 * utilization)
+  - [ ] Configurable weights via YAML
+
+### Data Loader
+- [ ] Create `src/data/snapshot_loader.py`
+  - [ ] Load JSON snapshots
+  - [ ] Parse families and tasks
+  - [ ] Extract machine assignments
+  - [ ] Calculate urgency scores
+  - [ ] Handle material arrival dates
+
+### Environment Tests
+- [ ] Create `tests/test_environment.py`
+  - [ ] Test constraint validation
+  - [ ] Test reward calculation
+  - [ ] Test action masking
+  - [ ] Test episode completion
+  - [ ] Test with 10_jobs.json
+
+## Phase 2: PPO Model Development 📋
+
+### PPO Agent
+- [ ] Create `src/models/ppo_scheduler.py`
+  - [ ] PPO algorithm implementation
+  - [ ] Clipped objective function
+  - [ ] Generalized Advantage Estimation (GAE)
+  - [ ] Experience collection
+  - [ ] Model update logic
+
+### Neural Networks
+- [ ] Create `src/models/networks.py`
+  - [ ] Policy network (MLP: 256-128-64)
+  - [ ] Value network (shared backbone)
+  - [ ] Action masking layer
+  - [ ] Forward pass implementation
+  - [ ] Parameter initialization
+
+### Training Components
+- [ ] Create `src/models/rollout_buffer.py`
+  - [ ] Experience storage
+  - [ ] Advantage computation
+  - [ ] Batch generation
+  - [ ] Buffer reset logic
+
+### Model Tests
+- [ ] Create `tests/test_ppo.py`
+  - [ ] Test network forward pass
+  - [ ] Test action masking
+  - [ ] Test loss computation
+  - [ ] Test gradient flow
+
+## Phase 3: Training Pipeline 📋
+
+### Main Training Script
+- [ ] Create `src/training/train.py`
+  - [ ] Training loop implementation
+  - [ ] Episode rollout
+  - [ ] Model updates
+  - [ ] Checkpoint saving
+  - [ ] Tensorboard logging
+  - [ ] Early stopping logic
+
+### Curriculum Manager
+- [ ] Create `src/training/curriculum_trainer.py`
+  - [ ] Stage 1: 10 jobs (100k steps)
+  - [ ] Stage 2: 20 jobs (100k steps)
+  - [ ] Stage 3: 40 jobs (100k steps)
+  - [ ] Stage 4: 60 jobs (100k steps)
+  - [ ] Stage 5: 100 jobs (100k steps)
+  - [ ] Stage 6: 200+ jobs (100k steps)
+  - [ ] Performance-based progression (>80% success)
+  - [ ] Model transfer between stages
+
+### Training Utilities
+- [ ] Create `src/training/utils.py`
+  - [ ] Learning rate scheduling
+  - [ ] Performance tracking
+  - [ ] Model checkpointing
+  - [ ] Tensorboard setup
+
+## Phase 4: Evaluation & Visualization 📋
+
+### Evaluation Script
+- [ ] Create `src/evaluation/evaluate.py`
+  - [ ] Load trained models
+  - [ ] Run evaluation episodes
+  - [ ] Calculate metrics:
+    - [ ] Constraint satisfaction rate
+    - [ ] On-time delivery rate
+    - [ ] Machine utilization
+    - [ ] Average makespan
+    - [ ] Schedule quality score
+
+### Baseline Comparisons
+- [ ] Create `src/evaluation/baselines.py`
+  - [ ] FIFO scheduler
+  - [ ] Earliest Due Date (EDD)
+  - [ ] Shortest Processing Time (SPT)
+  - [ ] Random scheduler
+  - [ ] Performance comparison
+
+### Visualization Tools
+- [ ] Create `src/visualization/gantt_chart.py`
+  - [ ] Job-view Gantt chart
+  - [ ] Machine-view Gantt chart
+  - [ ] Color coding (on-time, late, urgent)
+  - [ ] Save to `visualizations/` directory
+
+- [ ] Create `src/visualization/training_plots.py`
+  - [ ] Reward curves
+  - [ ] Performance metrics over time
+  - [ ] Stage progression visualization
+  - [ ] Loss curves
+
+## Phase 5: Configuration Management 📋
+
+### Environment Config
+- [ ] Create `configs/environment.yaml`
+  ```yaml
+  planning_horizon: 720  # hours (30 days)
+  time_step: 1  # hour
+  max_steps_per_episode: 1000
+  ```
+
+### Training Config
+- [ ] Create `configs/training.yaml`
+  ```yaml
+  learning_rate: 3e-4
+  batch_size: 64
+  n_epochs: 10
+  clip_range: 0.2
+  entropy_coef: 0.01
+  value_loss_coef: 0.5
+  max_grad_norm: 0.5
+  ```
+
+### Reward Config
+- [ ] Create `configs/reward.yaml`
+  ```yaml
+  on_time_reward: 100
+  early_bonus_per_day: 50
+  late_penalty_per_day: -100
+  sequence_violation: -500
+  utilization_bonus: 10
+  ```
+
+### Data Config
+- [ ] Create `configs/data.yaml`
+  ```yaml
+  stage_1_data: "data/10_jobs.json"
+  stage_2_data: "data/20_jobs.json"
+  stage_3_data: "data/40_jobs.json"
+  stage_4_data: "data/60_jobs.json"
+  stage_5_data: "data/100_jobs.json"
+  stage_6_data: "data/200_jobs.json"
+  ```
+
+## Phase 6: Integration & Deployment 📋
+
+### API Development
+- [ ] Create `src/api/scheduler_api.py`
+  - [ ] FastAPI application
+  - [ ] POST /schedule endpoint
+  - [ ] Model loading
+  - [ ] Request validation
+  - [ ] Response formatting
+
+### Docker Setup
+- [ ] Create `Dockerfile`
+- [ ] Create `docker-compose.yml`
+- [ ] Create `requirements.txt`
+- [ ] Create `.env.example`
+
+### Documentation
+- [ ] Create `README.md` with setup instructions
+- [ ] Create `docs/API.md` with endpoint docs
+- [ ] Create `docs/TRAINING.md` with training guide
+- [ ] Create `docs/EVALUATION.md` with metrics explanation
+
+## Success Criteria ✅
+
+### Performance Targets
+- [ ] 95% constraint satisfaction rate
+- [ ] 85% on-time delivery rate
+- [ ] <1 second inference for 100 jobs
+- [ ] >60% machine utilization
+- [ ] Better than FIFO baseline by 20%
+
+### Training Milestones
+- [ ] Stage 1 convergence in <50k steps
+- [ ] Successful curriculum progression
+- [ ] Stable training without divergence
+- [ ] Consistent performance across stages
+
+### Code Quality
+- [ ] All tests passing
+- [ ] Type hints on all functions
+- [ ] Docstrings for all classes/methods
+- [ ] No hardcoded values (use configs)
+- [ ] Following CLAUDE.md guidelines
+
+## Implementation Timeline
+
+### Week 1
+- Day 1-2: Environment implementation
+- Day 3-4: PPO model development
+- Day 5: Testing and debugging
+
+### Week 2
+- Day 1-2: Training pipeline
+- Day 3-4: Curriculum training
+- Day 5: Evaluation tools
+
+### Week 3
+- Day 1-2: Visualization
+- Day 3: API development
+- Day 4: Documentation
+- Day 5: Final testing
+
+## Current Status: 📍 Ready to Start Phase 1
+
+---
+
+*Last Updated: 2025-08-06*
+*Following CLAUDE.md guidelines: Real data only, PPO only, no hardcoded logic*
