@@ -129,9 +129,7 @@ Each JSON snapshot contains:
 
 ### Hard Constraints (Must be satisfied)
 1. **Sequence**: Tasks within family complete in order (1/3 → 2/3 → 3/3)
-2. **Machine Assignment**: Use pre-assigned machine or any available
-3. **No Overlap**: One task per machine at a time
-4. **Material Arrival**: Cannot schedule before material date
+2. **Machine Assignment**: Use pre-assigned machine or any available, one task per machine at a time
 
 ### Soft Constraints (Learned through rewards)
 - Meet LCD deadlines

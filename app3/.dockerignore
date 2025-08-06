@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+tests/
+
+# Development
+*.log
+*.pot
+*.pid
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Tensorboard
+tensorboard/
+runs/
+
+# Temporary files
+*.tmp
+temp/
+tmp/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Large training data (keep only necessary)
+data/200_jobs.json
+data/300_jobs.json
+data/500_jobs.json
+
+# Training artifacts
+training_logs/
+evaluation_results/

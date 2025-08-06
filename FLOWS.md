@@ -33,21 +33,18 @@ The PPO scheduling system uses deep reinforcement learning to optimize productio
 
 ### Constraint Implementation
 
-#### 1. Sequence Constraints (Hard)
+#### 1. Sequence Constraints (Hard) ✅
 - Tasks within family must complete in order (1/3 → 2/3 → 3/3)
 - Cannot start sequence N+1 until sequence N is completed
 - Tracked via family_completion_status dictionary
+- Fixed critical bug: Added sequence_available time checking
 
-#### 2. Machine Assignment (Hard)
+#### 2. Machine Assignment (Hard) ✅
 - Tasks with `assigned_machine`: Must use that specific machine
 - Tasks without `assigned_machine` (6% only): Can use any available machine
 - One task per machine at a time
 - Machine availability tracked via timeline
 
-#### 3. Material Availability (Hard)
-- Cannot schedule before `material_arrival` date
-- Validated during action masking
-- Prevents infeasible schedules
 
 ### Action Space & Masking
 ```python

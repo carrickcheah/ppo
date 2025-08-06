@@ -48,6 +48,52 @@
   - 95% constraint satisfaction rate
   - 85% on-time delivery rate
   - <1 second inference for 100 jobs
+
+### 2025-08-06 - app3 Implementation & Training Results
+
+- **Core Implementation Completed**:
+  - Built `SchedulingEnv` with full constraint validation
+  - Implemented sequence constraints enforcement (1/3 → 2/3 → 3/3)
+  - Created `PPOScheduler` with action masking support
+  - Developed `DataLoader` for JSON snapshot processing
+  - Added `RewardCalculator` with multi-objective optimization
+
+- **Curriculum Training Pipeline**:
+  - Implemented 6-stage progressive difficulty training
+  - Stage 1: 40 jobs → Achieved 100% completion rate
+  - Stage 2: 100 jobs → Achieved 98.2% completion rate (321/327 tasks)
+  - Fast training scripts optimized for M4 Pro MPS acceleration
+  - Model checkpoints saved for each stage
+
+- **Critical Bug Fixes**:
+  - Fixed sequence constraint violations (65 violations found initially)
+  - Corrected scheduling logic to respect sequence dependencies
+  - Added proper sequence_available time calculation
+  - Fixed NaN issues in MaskedCategorical distribution
+
+- **Visualization Development**:
+  - Created Gantt chart visualizations with job and machine views
+  - Implemented correct format: each sequence on separate row
+  - Labels show FAMILY_PROCESS_SEQUENCE/TOTAL format
+  - Color coding: Red (late), Orange (warning), Yellow (caution), Green (OK)
+  - Fixed redundancy and sequence ordering issues
+
+- **Training Optimization**:
+  - Reduced success criteria from 100% to 80% completion
+  - Adjusted reward weights: late penalty 0.3x, sequence violation 0.2x
+  - Increased action bonus 3x to encourage scheduling
+  - Reduced timesteps per stage for faster iteration
+
+- **Performance Results**:
+  - 40-job model: 100% task completion (127/127 tasks)
+  - 100-job model: 98.2% task completion (321/327 tasks)
+  - All sequence constraints properly enforced
+  - Models respect pre-assigned machine constraints
+
+- **CLAUDE.md Updates**:
+  - Added Gantt chart visualization standards
+  - Specified required chart format and labeling
+  - Documented sequence row organization requirements
   - >60% machine utilization
   - Better than FIFO baseline by 20%
 

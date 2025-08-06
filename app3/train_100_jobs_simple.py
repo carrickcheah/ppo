@@ -31,16 +31,15 @@ def train_100_jobs():
     env = SchedulingEnv(data_path, max_steps=5000)
     print(f"\nEnvironment: {env.n_tasks} tasks, {env.n_machines} machines")
     
-    # Create model with larger network
+    # Create model
     model = PPOScheduler(
         obs_dim=env.observation_space.shape[0],
         action_dim=env.action_space.n,
-        hidden_dim=512,
         device='mps'
     )
     
-    # Optimizer
-    optimizer = optim.Adam(model.parameters(), lr=3e-4)
+    # Optimizer - use model's internal network
+    optimizer = optim.Adam(model.policy.parameters(), lr=3e-4)
     
     # Training parameters
     n_episodes = 500
@@ -72,30 +71,29 @@ def train_100_jobs():
             obs_tensor = torch.FloatTensor(obs).unsqueeze(0).to('mps')
             mask_tensor = torch.FloatTensor(info['action_mask']).unsqueeze(0).to('mps')
             
-            # Get action
+            # Get action using model's predict method
             with torch.no_grad():
-                action_probs = model.policy(obs_tensor)
-                action_probs = action_probs * mask_tensor
+                action, _ = model.predict(obs, info['action_mask'], deterministic=False)
                 
-                if action_probs.sum() > 0:
-                    action_probs = action_probs / action_probs.sum()
-                else:
-                    action_probs = mask_tensor / mask_tensor.sum()
+                # Get log_prob and value for training
+                obs_tensor = torch.FloatTensor(obs).unsqueeze(0).to('mps')
+                mask_tensor = torch.BoolTensor(info['action_mask']).unsqueeze(0).to('mps')
                 
-                dist = torch.distributions.Categorical(action_probs)
-                action = dist.sample()
-                log_prob = dist.log_prob(action)
-                value = model.value(obs_tensor)
+                # Forward pass through network
+                logits, value, _ = model.policy(obs_tensor, mask_tensor)
+                logits = logits.masked_fill(mask_tensor == 0, -1e8)
+                dist = torch.distributions.Categorical(logits=logits)
+                log_prob = dist.log_prob(torch.tensor(action).to('mps'))
             
             # Store experience
             states.append(obs)
-            actions.append(action.item())
+            actions.append(action)
             log_probs.append(log_prob)
             values.append(value)
             masks.append(info['action_mask'])
             
             # Take action
-            next_obs, reward, terminated, truncated, next_info = env.step(action.item())
+            next_obs, reward, terminated, truncated, next_info = env.step(action)
             rewards.append(reward)
             episode_reward += reward
             
@@ -128,13 +126,12 @@ def train_100_jobs():
             # PPO update
             for _ in range(4):
                 # Get current predictions
-                action_probs = model.policy(states_tensor)
-                action_probs = action_probs * masks_tensor
-                action_probs = action_probs / (action_probs.sum(dim=1, keepdim=True) + 1e-8)
+                masks_bool = masks_tensor.bool()
+                logits, new_values, _ = model.policy(states_tensor, masks_bool)
+                logits = logits.masked_fill(~masks_bool, -1e8)
                 
-                dist = torch.distributions.Categorical(action_probs)
+                dist = torch.distributions.Categorical(logits=logits)
                 new_log_probs = dist.log_prob(actions_tensor)
-                new_values = model.value(states_tensor).squeeze()
                 
                 # Calculate losses
                 ratio = torch.exp(new_log_probs - old_log_probs.squeeze())
@@ -149,7 +146,7 @@ def train_100_jobs():
                 
                 optimizer.zero_grad()
                 total_loss.backward()
-                nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+                nn.utils.clip_grad_norm_(model.policy.parameters(), 0.5)
                 optimizer.step()
         
         # Progress

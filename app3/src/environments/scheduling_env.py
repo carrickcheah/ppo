@@ -209,8 +209,23 @@ class SchedulingEnv(gym.Env):
         if machine is None:
             return None  # Should not happen if validation works
             
-        # Calculate start and end times
-        start_time = self._get_machine_next_available(machine)
+        # Calculate start time considering BOTH machine availability AND sequence dependencies
+        machine_available = self._get_machine_next_available(machine)
+        sequence_available = self.current_time
+        
+        # Check if previous sequence must complete first
+        if task.sequence > 1:
+            prev_seq_key = (family.family_id, task.sequence - 1)
+            if prev_seq_key in self.loader.task_by_family_seq:
+                prev_task = self.loader.task_by_family_seq[prev_seq_key]
+                # Find when previous task ends
+                for t_idx, (t_start, t_end, t_machine) in self.task_schedules.items():
+                    if self.loader.tasks[t_idx] == prev_task:
+                        sequence_available = t_end
+                        break
+        
+        # Task can only start when BOTH machine is free AND sequence is ready
+        start_time = max(machine_available, sequence_available, self.current_time)
         end_time = start_time + task.processing_time
         
         # Update machine schedule

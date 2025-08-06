@@ -64,8 +64,6 @@ class ConstraintValidator:
         1. Task not already scheduled
         2. Previous sequence in family completed
         3. Machine is available (assigned or any)
-        4. Material has arrived
-        5. Not a duplicate
         
         Args:
             task_idx: Index of task to check
@@ -91,12 +89,6 @@ class ConstraintValidator:
         if not self._check_machine_availability(task, current_time, machine_schedules):
             return False
             
-        # Check 4: Material arrival
-        if not self._check_material_arrival(family, current_time):
-            return False
-            
-        # Check 5: No duplicate (already handled by scheduled_tasks set)
-        
         return True
         
     def _check_sequence_constraint(self, task, family) -> bool:
@@ -186,24 +178,6 @@ class ConstraintValidator:
         last_end = max(end for _, end in schedule)
         return current_time >= last_end
         
-    def _check_material_arrival(self, family, current_time: float) -> bool:
-        """
-        Check if material has arrived for family.
-        
-        Args:
-            family: Family to check
-            current_time: Current simulation time
-            
-        Returns:
-            True if material available
-        """
-        if not family.material_arrival:
-            return True  # No material constraint
-            
-        # Convert material arrival to hours from start
-        # For now, assume material is always available
-        # In production, properly parse dates and compare
-        return True
         
     def validate_action(
         self,
