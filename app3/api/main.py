@@ -74,7 +74,7 @@ async def schedule_jobs(request: ScheduleRequest):
         # Run scheduling
         result = scheduler_service.schedule_jobs(
             dataset_type=request.dataset,
-            model_type=request.model,
+            model_name=request.model,
             deterministic=request.deterministic,
             max_steps=request.max_steps
         )
@@ -87,7 +87,7 @@ async def schedule_jobs(request: ScheduleRequest):
             machines=result['machines'],
             statistics=result['statistics'],
             dataset_used=request.dataset.value,
-            model_used=request.model.value
+            model_used=request.model
         )
         
         logger.info(f"Scheduling complete: {result['statistics'].completion_rate:.1f}% completion")
@@ -120,7 +120,19 @@ async def get_datasets():
         DatasetType.JOBS_20: {"tasks": 65, "families": 20},
         DatasetType.JOBS_40: {"tasks": 130, "families": 40},
         DatasetType.JOBS_60: {"tasks": 195, "families": 60},
-        DatasetType.JOBS_100: {"tasks": 327, "families": 100}
+        DatasetType.JOBS_80: {"tasks": 260, "families": 80},
+        DatasetType.JOBS_100: {"tasks": 327, "families": 100},
+        DatasetType.JOBS_150: {"tasks": 490, "families": 150},
+        DatasetType.JOBS_180: {"tasks": 588, "families": 180},
+        DatasetType.JOBS_200: {"tasks": 653, "families": 200},
+        DatasetType.JOBS_250: {"tasks": 816, "families": 250},
+        DatasetType.JOBS_300: {"tasks": 980, "families": 300},
+        DatasetType.JOBS_330: {"tasks": 1078, "families": 330},
+        DatasetType.JOBS_380: {"tasks": 1241, "families": 380},
+        DatasetType.JOBS_400: {"tasks": 1306, "families": 400},
+        DatasetType.JOBS_430: {"tasks": 1404, "families": 430},
+        DatasetType.JOBS_450: {"tasks": 1469, "families": 450},
+        DatasetType.JOBS_500: {"tasks": 1633, "families": 500}
     }
     
     for dataset_type, info in dataset_info.items():
@@ -140,7 +152,7 @@ async def get_datasets():
 @app.get("/api/models", response_model=ModelsResponse)
 async def get_models():
     """
-    Get list of available PPO models.
+    Get list of available PPO models by auto-detecting from checkpoints directory.
     
     Returns:
         ModelsResponse with model information
@@ -148,44 +160,62 @@ async def get_models():
     base_path = Path("/Users/carrickcheah/Project/ppo/app3/checkpoints")
     
     models = []
-    model_info = {
-        ModelType.SB3_1M: {
-            "type": "SB3",
-            "path": "sb3_1million/best_model.zip",
-            "steps": 1000000,
-            "performance": {"efficiency": "TBD", "completion": "TBD"}
-        },
-        ModelType.SB3_500K: {
-            "type": "SB3",
-            "path": "sb3_500k/best_model.zip",
-            "steps": 500000,
-            "performance": {"efficiency": "TBD", "completion": "TBD"}
-        },
-        ModelType.SB3_100X: {
-            "type": "SB3",
-            "path": "sb3_100x/best_model.zip",
-            "steps": 100000,
-            "performance": {"efficiency": "TBD", "completion": "TBD"}
-        },
-        ModelType.SB3_OPTIMIZED: {
-            "type": "SB3",
-            "path": "sb3_optimized/best_model.zip",
-            "steps": 25000,
-            "performance": {"efficiency": "8.9%", "completion": "100%"}
-        }
-    }
     
-    for model_type, info in model_info.items():
-        checkpoint_path = base_path / info["path"]
-        
-        if checkpoint_path.exists():
-            models.append(ModelInfo(
-                name=model_type.value,
-                type=info["type"],
-                checkpoint_path=str(checkpoint_path),
-                training_steps=info["steps"],
-                performance=info["performance"]
-            ))
+    # Auto-detect all models with best_model.zip
+    if base_path.exists():
+        for model_dir in base_path.iterdir():
+            if model_dir.is_dir():
+                best_model_path = model_dir / "best_model.zip"
+                
+                # Check for best_model.zip in root of directory
+                if best_model_path.exists():
+                    # Generate display name from directory name
+                    dir_name = model_dir.name
+                    display_name = dir_name.replace("_", " ").title()
+                    
+                    # Determine model type
+                    model_type = "SB3" if "sb3" in dir_name.lower() else "Custom"
+                    
+                    # Estimate training steps from name if available
+                    steps = None
+                    if "1million" in dir_name or "1m" in dir_name.lower():
+                        steps = 1000000
+                    elif "500k" in dir_name:
+                        steps = 500000
+                    elif "100x" in dir_name:
+                        steps = 100000
+                    elif "10x" in dir_name:
+                        steps = 10000
+                    elif "optimized" in dir_name:
+                        steps = 25000
+                    
+                    models.append(ModelInfo(
+                        name=dir_name,
+                        type=model_type,
+                        checkpoint_path=str(best_model_path),
+                        training_steps=steps,
+                        performance={"efficiency": "Auto-detected", "completion": "Auto-detected"}
+                    ))
+                
+                # Also check for nested best_model.zip (e.g., in stage_1 subdirectory)
+                for subdir in model_dir.iterdir():
+                    if subdir.is_dir():
+                        nested_best_model = subdir / "best_model.zip"
+                        if nested_best_model.exists():
+                            # Create name with subdirectory
+                            nested_name = f"{model_dir.name}/{subdir.name}"
+                            display_name = nested_name.replace("_", " ").title()
+                            
+                            models.append(ModelInfo(
+                                name=nested_name,
+                                type="SB3" if "sb3" in model_dir.name.lower() else "Custom",
+                                checkpoint_path=str(nested_best_model),
+                                training_steps=None,
+                                performance={"efficiency": "Auto-detected", "completion": "Auto-detected"}
+                            ))
+    
+    # Sort models by name for consistent ordering
+    models.sort(key=lambda x: x.name)
     
     return ModelsResponse(models=models)
 

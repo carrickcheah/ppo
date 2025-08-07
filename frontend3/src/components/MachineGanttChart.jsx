@@ -29,7 +29,7 @@ const MachineGanttChart = ({ machines, timeRange = '2weeks' }) => {
           mode: 'lines',
           line: {
             color: task.color,
-            width: 20
+            width: 30
           },
           name: task.task_label,
           showlegend: false,
@@ -54,9 +54,10 @@ const MachineGanttChart = ({ machines, timeRange = '2weeks' }) => {
             text: [task.task_label.length > 15 ? task.task_label.substring(0, 15) + '...' : task.task_label],
             textposition: 'middle center',
             textfont: {
-              size: 9,
-              color: 'white',
-              family: 'Arial, sans-serif'
+              size: 10,
+              color: 'black',
+              family: 'Arial, sans-serif',
+              weight: 'bold'
             },
             showlegend: false,
             hoverinfo: 'skip'
@@ -94,71 +95,121 @@ const MachineGanttChart = ({ machines, timeRange = '2weeks' }) => {
 
   // Define x-axis range and ticks based on selected time range
   let xaxisConfig;
-  if (timeRange === '2days') {
-    const maxHours = 48; // 2 days in hours
+  if (timeRange === '5days') {
+    const maxHours = 120; // 5 days in hours
+    // Generate hourly ticks every 12 hours with 24-hour format
+    const tickvals = [];
+    const ticktext = [];
+    for (let i = 0; i <= maxHours; i += 12) {
+      tickvals.push(i);
+      const hour = i % 24;
+      const hourStr = hour.toString().padStart(2, '0');
+      ticktext.push(`${hourStr}:00`);
+    }
     xaxisConfig = {
       title: '',
       range: [0, maxHours],
       tickmode: 'array',
-      tickvals: [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48],
-      ticktext: ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00', '00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00', '00:00'],
+      tickvals: tickvals,
+      ticktext: ticktext,
+    };
+  } else if (timeRange === '2days') {
+    const maxHours = 48; // 2 days in hours
+    // Generate hourly ticks every 4 hours with 24-hour format
+    const tickvals = [];
+    const ticktext = [];
+    for (let i = 0; i <= maxHours; i += 4) {
+      tickvals.push(i);
+      const hour = i % 24;
+      const hourStr = hour.toString().padStart(2, '0');
+      ticktext.push(`${hourStr}:00`);
+    }
+    xaxisConfig = {
+      title: '',
+      range: [0, maxHours],
+      tickmode: 'array',
+      tickvals: tickvals,
+      ticktext: ticktext,
     };
   } else if (timeRange === '2weeks') {
     const maxHours = 336; // 2 weeks in hours
+    // Generate hourly ticks every 24 hours with 24-hour format
+    const tickvals = [];
+    const ticktext = [];
+    for (let i = 0; i <= maxHours; i += 24) {
+      tickvals.push(i);
+      const hour = i % 24;
+      const hourStr = hour.toString().padStart(2, '0');
+      ticktext.push(`${hourStr}:00`);
+    }
     xaxisConfig = {
       title: '',
       range: [0, maxHours],
       tickmode: 'array',
-      tickvals: [0, 24, 48, 72, 96, 120, 144, 168, 192, 216, 240, 264, 288, 312, 336],
-      ticktext: ['Day 0', 'Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7', 'Day 8', 'Day 9', 'Day 10', 'Day 11', 'Day 12', 'Day 13', 'Day 14'],
+      tickvals: tickvals,
+      ticktext: ticktext,
     };
   } else if (timeRange === '4weeks') {
     const maxHours = 672; // 4 weeks in hours
+    // Generate hourly ticks every 24 hours
+    const tickvals = [];
+    const ticktext = [];
+    for (let i = 0; i <= maxHours; i += 24) {
+      tickvals.push(i);
+      ticktext.push('00:00');
+    }
     xaxisConfig = {
       title: '',
       range: [0, maxHours],
       tickmode: 'array',
-      tickvals: [0, 168, 336, 504, 672],
-      ticktext: ['Week 0', 'Week 1', 'Week 2', 'Week 3', 'Week 4'],
+      tickvals: tickvals,
+      ticktext: ticktext,
     };
   } else {
     // 6 weeks
     const maxHours = 1008; // 6 weeks in hours
+    // Generate hourly ticks every 48 hours
+    const tickvals = [];
+    const ticktext = [];
+    for (let i = 0; i <= maxHours; i += 48) {
+      tickvals.push(i);
+      ticktext.push('00:00');
+    }
     xaxisConfig = {
       title: '',
       range: [0, maxHours],
       tickmode: 'array',
-      tickvals: [0, 168, 336, 504, 672, 840, 1008],
-      ticktext: ['Week 0', 'Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'],
+      tickvals: tickvals,
+      ticktext: ticktext,
     };
   }
 
   const layout = {
     title: {
-      text: 'Machine Allocation',
+      text: '',
       font: { size: 20, family: 'Arial, sans-serif' },
       x: 0.5,
       xanchor: 'center'
     },
     xaxis: {
       ...xaxisConfig,
-      titlefont: { size: 14 },
+      titlefont: { size: 14, color: 'black' },
       showgrid: true,
-      gridcolor: '#ddd',
+      gridcolor: '#e5e7eb',
       gridwidth: 1,
       zeroline: true,
       zerolinecolor: '#999',
       zerolinewidth: 2,
       // range is set in xaxisConfig but override if needed
       range: xaxisConfig.range || [0, maxTime + 24],
-      tickfont: { size: 12 },
+      tickfont: { size: 11, color: 'black' },
       showline: true,
       linecolor: '#999',
       linewidth: 2
     },
     yaxis: {
       title: 'Machines',
-      titlefont: { size: 14 },
+      titlefont: { size: 14, color: 'black' },
       showgrid: false,
       zeroline: false,
       tickmode: 'array',
@@ -166,21 +217,21 @@ const MachineGanttChart = ({ machines, timeRange = '2weeks' }) => {
       ticktext: yLabels,
       automargin: true,
       range: [-1, yIndex],
-      tickfont: { size: 11, family: 'Courier New, monospace' },
+      tickfont: { size: 11, family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', color: 'black' },
       showline: true,
       linecolor: '#999',
       linewidth: 2
     },
     shapes: shapes,
     autosize: true,
-    height: Math.max(600, yIndex * 22 + 100),
+    height: yIndex * 50 + 400,
     margin: {
-      l: 150,
-      r: 50,
-      t: 50,
-      b: 50
+      l: 280,
+      r: 100,
+      t: 40,
+      b: 150
     },
-    plot_bgcolor: 'white',
+    plot_bgcolor: '#fafbfc',
     paper_bgcolor: 'white',
     hovermode: 'closest',
     dragmode: false,
@@ -260,12 +311,12 @@ const MachineGanttChart = ({ machines, timeRange = '2weeks' }) => {
   ];
 
   return (
-    <div className="gantt-chart-container">
+    <div className="gantt-chart-container" style={{ width: '100%', height: `${yIndex * 50 + 400}px` }}>
       <Plot
         data={[...traces, ...legendTraces]}
         layout={layout}
         config={config}
-        useResizeHandler={true}
+        useResizeHandler={false}
         style={{ width: '100%', height: '100%' }}
       />
     </div>

@@ -13,11 +13,25 @@ class DatasetType(str, Enum):
     JOBS_20 = "20_jobs"
     JOBS_40 = "40_jobs"
     JOBS_60 = "60_jobs"
+    JOBS_80 = "80_jobs"
     JOBS_100 = "100_jobs"
+    JOBS_150 = "150_jobs"
+    JOBS_180 = "180_jobs"
+    JOBS_200 = "200_jobs"
+    JOBS_250 = "250_jobs"
+    JOBS_300 = "300_jobs"
+    JOBS_330 = "330_jobs"
+    JOBS_380 = "380_jobs"
+    JOBS_400 = "400_jobs"
+    JOBS_430 = "430_jobs"
+    JOBS_450 = "450_jobs"
+    JOBS_500 = "500_jobs"
 
 
 class ModelType(str, Enum):
-    """Available PPO models."""
+    """Available PPO models - dynamically detected from checkpoints."""
+    # This enum is deprecated - models are now auto-detected
+    # Keeping for backward compatibility
     SB3_1M = "sb3_1million"
     SB3_500K = "sb3_500k"
     SB3_100X = "sb3_100x"
@@ -29,7 +43,7 @@ class ModelType(str, Enum):
 class ScheduleRequest(BaseModel):
     """Request model for scheduling endpoint."""
     dataset: DatasetType = Field(default=DatasetType.JOBS_40, description="Dataset to schedule")
-    model: ModelType = Field(default=ModelType.SB3_1M, description="PPO model to use")
+    model: str = Field(default="sb3_1million", description="PPO model to use (auto-detected from checkpoints)")
     deterministic: bool = Field(default=True, description="Use deterministic policy")
     max_steps: int = Field(default=10000, description="Maximum scheduling steps")
 

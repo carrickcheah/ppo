@@ -37,12 +37,12 @@ function App() {
   const [datasets, setDatasets] = useState([]);
   const [models, setModels] = useState([]);
   const [selectedDataset, setSelectedDataset] = useState('100_jobs');
-  const [selectedModel, setSelectedModel] = useState('sb3_1million');
+  const [selectedModel, setSelectedModel] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [scheduleData, setScheduleData] = useState(null);
   const [activeChart, setActiveChart] = useState('jobs');
-  const [timeRange, setTimeRange] = useState('2weeks');
+  const [timeRange, setTimeRange] = useState('4weeks');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Load datasets and models on mount
@@ -58,6 +58,13 @@ function App() {
       ]);
       setDatasets(datasetsRes.datasets || []);
       setModels(modelsRes.models || []);
+      
+      // Set default model if available
+      if (modelsRes.models && modelsRes.models.length > 0) {
+        // Prefer sb3_1million if available, otherwise use first model
+        const defaultModel = modelsRes.models.find(m => m.name === 'sb3_1million') || modelsRes.models[0];
+        setSelectedModel(defaultModel.name);
+      }
     } catch (err) {
       console.error('Error loading options:', err);
       setError('Failed to load datasets and models');
@@ -82,11 +89,6 @@ function App() {
   return (
     <Router>
       <div className="App">
-        <header className="app-header">
-          <h1>PPO Scheduling Visualization System</h1>
-          <p>Schedule jobs using trained PPO models and visualize with Gantt charts</p>
-        </header>
-        
         <Navigation />
 
         <Routes>
@@ -108,6 +110,7 @@ function App() {
                 setActiveChart={setActiveChart}
                 isFullscreen={isFullscreen}
                 setIsFullscreen={setIsFullscreen}
+                models={models}
               />
             } 
           />

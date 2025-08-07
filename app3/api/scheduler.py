@@ -29,17 +29,15 @@ class PPOSchedulerService:
         self.models_cache = {}
         self.base_path = Path("/Users/carrickcheah/Project/ppo/app3")
         
-    def get_model_path(self, model_type: ModelType) -> str:
-        """Get the path to a model checkpoint."""
-        model_paths = {
-            ModelType.SB3_1M: "checkpoints/sb3_1million/best_model.zip",
-            ModelType.SB3_500K: "checkpoints/sb3_500k/best_model.zip",
-            ModelType.SB3_100X: "checkpoints/sb3_100x/best_model.zip",
-            ModelType.SB3_OPTIMIZED: "checkpoints/sb3_optimized/best_model.zip",
-            ModelType.CUSTOM_10X: "checkpoints/10x/best_model.pth",
-            ModelType.CUSTOM_FAST: "checkpoints/fast/best_model.pth"
-        }
-        return str(self.base_path / model_paths[model_type])
+    def get_model_path(self, model_name: str) -> str:
+        """Get the path to a model checkpoint by name."""
+        # Check if it's a direct path to best_model.zip
+        if "/" in model_name:
+            # Nested model like "sb3_500k/stage_1"
+            return str(self.base_path / f"checkpoints/{model_name}/best_model.zip")
+        else:
+            # Direct model name
+            return str(self.base_path / f"checkpoints/{model_name}/best_model.zip")
     
     def get_dataset_path(self, dataset_type: DatasetType) -> str:
         """Get the path to a dataset."""
@@ -48,31 +46,40 @@ class PPOSchedulerService:
             DatasetType.JOBS_20: "data/20_jobs.json",
             DatasetType.JOBS_40: "data/40_jobs.json",
             DatasetType.JOBS_60: "data/60_jobs.json",
-            DatasetType.JOBS_100: "data/100_jobs.json"
+            DatasetType.JOBS_80: "data/80_jobs.json",
+            DatasetType.JOBS_100: "data/100_jobs.json",
+            DatasetType.JOBS_150: "data/150_jobs.json",
+            DatasetType.JOBS_180: "data/180_jobs.json",
+            DatasetType.JOBS_200: "data/200_jobs.json",
+            DatasetType.JOBS_250: "data/250_jobs.json",
+            DatasetType.JOBS_300: "data/300_jobs.json",
+            DatasetType.JOBS_330: "data/330_jobs.json",
+            DatasetType.JOBS_380: "data/380_jobs.json",
+            DatasetType.JOBS_400: "data/400_jobs.json",
+            DatasetType.JOBS_430: "data/430_jobs.json",
+            DatasetType.JOBS_450: "data/450_jobs.json",
+            DatasetType.JOBS_500: "data/500_jobs.json"
         }
         return str(self.base_path / dataset_paths[dataset_type])
     
-    def load_model(self, model_type: ModelType) -> PPO:
+    def load_model(self, model_name: str) -> PPO:
         """Load a PPO model from checkpoint."""
-        if model_type not in self.models_cache:
-            model_path = self.get_model_path(model_type)
+        if model_name not in self.models_cache:
+            model_path = self.get_model_path(model_name)
             
             # Check if model exists
             if not os.path.exists(model_path):
                 raise FileNotFoundError(f"Model not found: {model_path}")
             
-            # Load SB3 models only (custom models need different loading)
-            if model_type in [ModelType.CUSTOM_10X, ModelType.CUSTOM_FAST]:
-                raise NotImplementedError("Custom PPO models not yet supported. Use SB3 models.")
+            # Load SB3 models (assuming all auto-detected models are SB3)
+            self.models_cache[model_name] = PPO.load(model_path)
             
-            self.models_cache[model_type] = PPO.load(model_path)
-            
-        return self.models_cache[model_type]
+        return self.models_cache[model_name]
     
     def schedule_jobs(
         self,
         dataset_type: DatasetType,
-        model_type: ModelType,
+        model_name: str,
         deterministic: bool = True,
         max_steps: int = 10000
     ) -> Dict:
@@ -85,7 +92,7 @@ class PPOSchedulerService:
         start_time = time.time()
         
         # Get model path
-        model_path = self.get_model_path(model_type)
+        model_path = self.get_model_path(model_name)
         
         # Create environment
         dataset_path = self.get_dataset_path(dataset_type)
