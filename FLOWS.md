@@ -296,6 +296,70 @@ The curriculum trainer progressively trains PPO models through 6 stages of incre
 - **Handles 100-400 jobs** successfully
 - **67.1% overall score** (acceptable, needs more training)
 
+## Web Visualization System (Phase 7 - Complete)
+
+### FastAPI Backend Architecture
+- **Auto-Detection System**: Models and datasets discovered automatically
+- **FlexibleScheduler**: Handles any observation size with padding/truncation
+- **REST Endpoints**:
+  - POST /api/schedule - Run PPO scheduling
+  - GET /api/datasets - List available datasets (10-500 jobs)
+  - GET /api/models - List trained models in checkpoints/
+
+### React Frontend Features
+- **Dynamic Dropdowns**: Auto-populated from API
+- **Jobs View**: Each sequence on separate row with FAMILY_PROCESS_SEQ/TOTAL format
+- **Machines View**: Per-machine allocation with utilization percentages
+- **Chart Improvements**:
+  - 24-hour time format
+  - Bold black text on bars
+  - 4-week default timeframe
+  - Proper row spacing (no overlap)
+  - Professional 2x4 statistics grid
+
+### Results Analysis Pipeline
+1. **Run `analyze_and_visualize.py`**:
+   - Fetches data from API
+   - Generates logs in phase3/logs/
+   - Creates JSON results in phase3/results/
+   - Produces Job Allocation charts
+   - Produces Machine Allocation charts
+   - All files use q_ prefix
+
+### Production Deployment
+```bash
+# Start API server
+uvicorn api.main:app --host 0.0.0.0 --port 8000
+
+# Start frontend
+cd frontend3 && npm run dev
+
+# Generate analysis
+python analyze_and_visualize.py
+```
+
+### Performance Metrics (Latest)
+- **100 jobs dataset**: 327 tasks scheduled
+- **Completion rate**: 100%
+- **On-time rate**: 29.05%
+- **Machine utilization**: 8.96%
+- **Makespan**: 888.93 hours
+- **Inference time**: 7.45 seconds
+
+### Directory Structure (Cleaned)
+```
+app3/
+├── api/                 # FastAPI backend
+├── src/                 # Core scheduling logic
+├── data/                # JSON datasets (10-500 jobs)
+├── checkpoints/         # Trained models
+├── visualizations/      # Generated charts
+├── phase3/             # Analysis outputs
+│   ├── logs/           # q_analysis_log_*.txt
+│   └── results/        # q_results_*.json
+└── frontend3/          # React visualization app
+```
+
 ---
 
-*This workflow represents the simplified app3 architecture that leverages pre-assigned machines to make PPO training more tractable while maintaining all essential scheduling constraints.*
+*This workflow represents the complete app3 production system with web-based visualization, auto-detection capabilities, and comprehensive analysis tools.*

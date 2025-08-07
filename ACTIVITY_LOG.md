@@ -438,4 +438,51 @@
   - Harsh penalties discourage exploration - reduced by 70-80%
   - Longer episodes critical for completing all sequence dependencies
   - Reward shaping more important than raw training time
+
+### 2025-08-07 - App3 Production System Implementation
+
+- **FastAPI Backend with Auto-Detection**:
+  - Implemented REST API for PPO scheduling visualization
+  - Auto-detection of datasets (10-500 jobs) from data directory
+  - Auto-detection of trained models from checkpoints directory
+  - Dynamic model loading without hardcoded enums
+  - Support for nested models (e.g., sb3_500k/stage_1)
+
+- **React Frontend Improvements**:
+  - Fixed cramped Gantt chart visualization with proper row spacing
+  - Implemented 24-hour time format for all timeframes
+  - Changed default timeframe to 4 weeks
+  - Made text inside Gantt bars bold and black for readability
+  - Redesigned Dashboard statistics to 2x4 grid with square items (200x200px)
+  - Removed navigation hint section for cleaner UI
+  - Removed header from all pages for more screen space
+  - Applied consistent styling to both Jobs and Machines views
+
+- **Results Analysis and Visualization**:
+  - Created analyze_and_visualize.py script for app3
+  - Generates comprehensive logs in phase3/logs directory
+  - Creates JSON results in phase3/results directory
+  - Produces Job Allocation Gantt charts with deadline color coding
+  - Produces Machine Allocation charts with utilization percentages
+  - All files follow q_ prefix naming convention
+
+- **Directory Cleanup**:
+  - Removed 22 unnecessary files from app3 root
+  - Eliminated test files, validation scripts, and outdated training files
+  - Kept only 8 essential files for core functionality
+  - Organized structure: api/, src/, data/, checkpoints/, visualizations/
+
+- **Performance Metrics (100 jobs with sb3_1million)**:
+  - 100% completion rate with 327 tasks scheduled
+  - 29.05% on-time delivery rate
+  - 8.96% machine utilization
+  - 888.93 hours makespan
+  - 7.45 seconds inference time
+
+- **Key Technical Improvements**:
+  - Fixed overlapping Y-axis labels in charts
+  - Proper scrolling implementation for large charts
+  - Dynamic dataset and model detection
+  - Flexible scheduler supporting any observation size
+  - Real-time API updates without server restart
   - M4 Pro's neural engine provides excellent PPO training performance
