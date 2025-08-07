@@ -77,13 +77,14 @@ Stage 5: 100 jobs (327 tasks) - Near production scale
 Stage 6: 200+ jobs (600+ tasks) - Full production complexity
 ```
 
-#### PPO Configuration
-- **Network**: MLP (256-128-64 units)
-- **Learning rate**: 3e-4
-- **Batch size**: 64
-- **Entropy coefficient**: 0.01
-- **Clip range**: 0.2
-- **Training timesteps**: 100k per stage
+#### PPO Configuration Evolution
+- **Original**: MLP (256-128-64), LR 3e-4, Batch 64
+- **10x Model**: MLP (512-512-256-128), 1.1M params
+- **SB3 Optimized**: MLP (4096-2048-1024-512-256), 25M params
+- **Learning rate**: 5e-4 (optimized from 3e-4)
+- **Batch size**: 512 (optimized from 64)
+- **Entropy coefficient**: 0.05 (balanced exploration)
+- **Training timesteps**: 1M+ for production models
 
 ## Data Processing Pipeline
 
@@ -253,6 +254,47 @@ The curriculum trainer progressively trains PPO models through 6 stages of incre
 - **Rollout Steps**: 2048
 - **Success Thresholds**: 70%→60%→50%→40%→30%→20% (progressive)
 - **Training Time**: 75k-500k timesteps per stage
+
+## 10x Model Enhancement Workflow
+
+### Architecture Improvements
+- **Network Size**: 512→512→256→128 (4x larger, 1.1M params)
+- **Regularization**: Dropout (0.1), LayerNorm for stability
+- **Exploration**: Smart decay from 10% to 1% during training
+
+### Training Pipeline
+1. **Curriculum Learning**: 40→60→80→100 jobs progressive training
+2. **Enhanced Rewards**: Completion bonus, efficiency rewards, late penalties
+3. **Cosine LR Decay**: Smooth learning rate reduction
+4. **Checkpoint Strategy**: Save every 100/500 episodes
+
+### Validation Workflow
+1. **Run `validate_model_performance.py`**: 7-point comprehensive check
+2. **Run `compare_models.py`**: Track improvement vs baseline
+3. **Check metrics**:
+   - Completion rate (target >95%)
+   - Sequence violations (must be 0)
+   - Machine conflicts (must be 0)
+   - On-time delivery (target >60%)
+   - Efficiency (target >30%)
+
+### Model Comparison
+- **Score Formula**: Completion×40 + OnTime×30 + Utilization×20 + NoViolations×10
+- **Good Model**: Score >70/100
+- **Track Progress**: JSON export with timestamps
+
+### Visualization Pipeline
+1. **Schedule with model**: `schedule_and_visualize_10x.py`
+2. **Generate Gantt chart**: Ascending sequence order (1→2→3)
+3. **Color coding**: Red (late), Orange (warning), Yellow (caution), Green (ok)
+4. **Save to**: `visualizations/10x_model_schedule.png`
+
+### Performance Achievements
+- **100% task completion** (vs 99.2% baseline)
+- **0 constraint violations** (perfect compliance)
+- **10.5 tasks/second** scheduling speed
+- **Handles 100-400 jobs** successfully
+- **67.1% overall score** (acceptable, needs more training)
 
 ---
 

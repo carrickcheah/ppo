@@ -20,6 +20,7 @@
     - Machine names with utilization percentages
     - Similar time range and color coding
     - Machine utilization summary statistics
+    
   - Modified `ScheduleForm.tsx`:
     - Removed default 20 jobs input field
     - Removed 'GENERATE SAMPLE' button
