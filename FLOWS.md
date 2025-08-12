@@ -360,6 +360,47 @@ app3/
 └── frontend3/          # React visualization app
 ```
 
+## Performance Optimization Workflow (Phase 8)
+
+### Current Performance Gaps
+- **On-time delivery**: 29% → Target: 85%
+- **Machine utilization**: 9% → Target: 60%
+- **Inference speed**: 7.45s → Target: <1s
+
+### Reward Function Rebalancing Strategy
+1. **Create deadline-focused rewards**:
+   ```python
+   reward_config = {
+       'on_time_reward': 1000.0,        # 10x increase
+       'late_penalty_per_day': -200.0,  # 40x increase
+       'early_bonus_per_day': 200.0,    # 4x increase
+       'utilization_bonus': 20.0,       # 5x decrease
+   }
+   ```
+
+2. **Training progression**:
+   - Start with 40_jobs.json for fast iteration
+   - Monitor on-time rate every 5000 steps
+   - Scale to 100_jobs.json after 60% achievement
+   - Compare with baseline (29%)
+
+### New Training Pipeline
+```bash
+# Run deadline-focused training
+python train_deadline_focused.py
+
+# Monitor tensorboard
+tensorboard --logdir logs/deadline_focused_*
+
+# Evaluate results
+python evaluate_deadline_model.py
+```
+
+### Success Metrics
+- **Stage 1**: 60% on-time rate on 40_jobs.json
+- **Stage 2**: 70% on-time rate on 100_jobs.json
+- **Stage 3**: 85% on-time rate on production data
+
 ---
 
 *This workflow represents the complete app3 production system with web-based visualization, auto-detection capabilities, and comprehensive analysis tools.*

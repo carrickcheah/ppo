@@ -485,4 +485,45 @@
   - Dynamic dataset and model detection
   - Flexible scheduler supporting any observation size
   - Real-time API updates without server restart
+
+### 2025-08-12 - TODO.md Reorganization & Performance Optimization Planning
+
+- **TODO.md Hierarchical Reorganization**:
+  - Converted all phases to numbered format (1, 1.1, 1.2, etc.)
+  - Added clear sub-task numbering for better tracking
+  - Marked current position: Phase 8 - Performance Optimization
+  - Added visual indicators: ✅ (complete), ❌ (pending), 🎯 (current focus)
+  - Restructured all 7 completed phases with detailed sub-tasks
+  - Created Phase 8 for Performance Optimization with 6 sub-sections
+
+- **Phase 8 Performance Optimization Structure**:
+  - 8.1 Performance Targets (tracking current vs target metrics)
+  - 8.2 Reward Function Rebalancing (deadline-focused rewards)
+  - 8.3 Training Strategy Optimization (business metrics focus)
+  - 8.4 Model Architecture Optimization (inference speed)
+  - 8.5 Algorithm Enhancements (priority-aware masking)
+  - 8.6 Evaluation and Benchmarking (baseline comparisons)
+
+- **Created train_deadline_focused.py**:
+  - New reward configuration prioritizing on-time delivery:
+    - on_time_reward: 1000.0 (10x increase from 100)
+    - late_penalty_per_day: -200.0 (40x increase from -5)
+    - early_bonus_per_day: 200.0 (4x increase from 50)
+    - utilization_bonus: 20.0 (5x decrease from 100)
+  - Custom OnTimeRateCallback for monitoring delivery rates
+  - Starts with 40_jobs.json for faster iteration
+  - Auto-suggests scaling to 100_jobs.json after 60% on-time rate
+  - Comprehensive metrics tracking and comparison with baseline
+
+- **Current Performance Gaps Identified**:
+  - On-time delivery: 29% (target: 85%)
+  - Machine utilization: 9% (target: 60%)
+  - Inference speed: 7.45s (target: <1s)
+  - Root cause: Reward structure favors utilization over deadlines
+
+- **Next Steps**:
+  - Task 8.2.1: Test deadline-focused training on 40_jobs.json
+  - Task 8.2.2: Implement urgency-based reward multipliers
+  - Task 8.2.3: Create adaptive reward calculator
+  - Monitor improvements and scale to larger datasets
   - M4 Pro's neural engine provides excellent PPO training performance
