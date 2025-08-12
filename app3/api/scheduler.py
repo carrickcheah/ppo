@@ -15,6 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from stable_baselines3 import PPO
 from src.environments.scheduling_env import SchedulingEnv
 from api.flexible_scheduler import FlexibleScheduler
+from src.utils.config import get_reward_config, get_environment_config
 from api.models import (
     JobTask, MachineTask, ScheduleStatistics,
     DatasetType, ModelType
@@ -96,10 +97,15 @@ class PPOSchedulerService:
         
         # Create environment
         dataset_path = self.get_dataset_path(dataset_type)
+        # Load configs
+        env_cfg = get_environment_config()
+        reward_cfg = get_reward_config()
+
         env = SchedulingEnv(
             snapshot_path=dataset_path,
-            max_steps=max_steps,
-            planning_horizon=720.0
+            max_steps=env_cfg.get("max_steps_per_episode", max_steps),
+            planning_horizon=float(env_cfg.get("planning_horizon", 720.0)),
+            reward_config=reward_cfg
         )
         
         # Use flexible scheduler for any dataset size

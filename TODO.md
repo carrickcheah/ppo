@@ -13,7 +13,7 @@ Build a simplified PPO-based scheduling system using pre-assigned machines from 
 - **500_jobs.json**: 1600+ tasks, 500 families (production scale)
 - All data from MariaDB with real job IDs (JOST, JOTP, JOPRD prefixes)
 
-## Phase 1: Environment Implementation ✅ COMPLETE
+## Phase 1: Environment Implementation - COMPLETE
 
 ### Core Environment
 - [x] Create `src/environments/scheduling_env.py`
@@ -38,7 +38,7 @@ Build a simplified PPO-based scheduling system using pre-assigned machines from 
   - [x] Late penalty (-100 * days_late)
   - [x] Sequence violation penalty (-500)
   - [x] Machine utilization bonus (+10 * utilization)
-  - [ ] Configurable weights via YAML (params work, YAML pending)
+  - [x] Configurable weights via YAML (implemented via `app3/configs/reward.yaml` and loaded in `SchedulingEnv`)
 
 ### Data Loader
 - [x] Create `src/data/snapshot_loader.py`
@@ -56,7 +56,7 @@ Build a simplified PPO-based scheduling system using pre-assigned machines from 
   - [x] Test episode completion
   - [x] Test with 10_jobs.json
 
-## Phase 2: PPO Model Development ✅ COMPLETE
+## Phase 2: PPO Model Development - COMPLETE
 
 ### PPO Agent
 - [x] Create `src/models/ppo_scheduler.py`
@@ -88,7 +88,7 @@ Build a simplified PPO-based scheduling system using pre-assigned machines from 
   - [x] Test loss computation
   - [x] Test gradient flow
 
-## Phase 3: Training Pipeline ✅ COMPLETE
+## Phase 3: Training Pipeline - COMPLETE
 
 ### Main Training Script
 - [x] Create `src/training/train.py`
@@ -118,7 +118,7 @@ Build a simplified PPO-based scheduling system using pre-assigned machines from 
   - [x] Model checkpointing (best + final per stage)
   - [x] Tensorboard setup (automatic logging)
 
-## 10x Model Enhancement ✅ COMPLETE
+## 10x Model Enhancement - COMPLETE
 
 ### Architecture Improvements
 - [x] Upgraded network: 512→512→256→128 (4x larger)
@@ -143,7 +143,7 @@ Build a simplified PPO-based scheduling system using pre-assigned machines from 
 - [x] No constraint violations
 - [x] Model score: 67.1% (acceptable, needs more training)
 
-## Phase 4: Evaluation & Visualization ✅ COMPLETE
+## Phase 4: Evaluation & Visualization - COMPLETE
 
 ### Evaluation Script
 - [x] Model testing implemented (multiple scripts)
@@ -156,12 +156,12 @@ Build a simplified PPO-based scheduling system using pre-assigned machines from 
   - [x] `evaluate_10x.py` - Comprehensive metrics
 
 ### Baseline Comparisons
-- [ ] Create `src/evaluation/baselines.py`
-  - [ ] FIFO scheduler
-  - [ ] Earliest Due Date (EDD)
-  - [ ] Shortest Processing Time (SPT)
-  - [ ] Random scheduler
-  - [ ] Performance comparison
+- [x] Create `src/evaluation/baselines.py`
+  - [x] FIFO scheduler
+  - [x] Earliest Due Date (EDD)
+  - [x] Shortest Processing Time (SPT)
+  - [x] Random scheduler
+  - [x] Performance comparison (CLI: `python -m src.evaluation.baselines --data app3/data/40_jobs.json`)
 
 ### Visualization Tools
 - [x] Gantt chart implementation complete
@@ -180,10 +180,10 @@ Build a simplified PPO-based scheduling system using pre-assigned machines from 
   - [x] Checkpoint progression tracking
   - [x] JSON export of results
 
-## Phase 5: Configuration Management 📋
+## Phase 5: Configuration Management
 
 ### Environment Config
-- [ ] Create `configs/environment.yaml`
+- [x] Create `/app3/configs/environment.yaml`
   ```yaml
   planning_horizon: 720  # hours (30 days)
   time_step: 1  # hour
@@ -191,7 +191,7 @@ Build a simplified PPO-based scheduling system using pre-assigned machines from 
   ```
 
 ### Training Config
-- [ ] Create `configs/training.yaml`
+- [x] Create `/app3/configs/training.yaml`
   ```yaml
   learning_rate: 3e-4
   batch_size: 64
@@ -203,7 +203,7 @@ Build a simplified PPO-based scheduling system using pre-assigned machines from 
   ```
 
 ### Reward Config
-- [ ] Create `configs/reward.yaml`
+- [x] Create `/app3/configs/reward.yaml`
   ```yaml
   on_time_reward: 100
   early_bonus_per_day: 50
@@ -213,7 +213,7 @@ Build a simplified PPO-based scheduling system using pre-assigned machines from 
   ```
 
 ### Data Config
-- [ ] Create `configs/data.yaml`
+- [x] Create `/app3/configs/data.yaml`
   ```yaml
   stage_1_data: "data/10_jobs.json"
   stage_2_data: "data/20_jobs.json"
@@ -223,7 +223,7 @@ Build a simplified PPO-based scheduling system using pre-assigned machines from 
   stage_6_data: "data/200_jobs.json"
   ```
 
-## Phase 6: Integration & Deployment 📋
+## Phase 6: Integration & Deployment
 
 ### API Development
 - [ ] Create `src/api/scheduler_api.py`
@@ -236,7 +236,7 @@ Build a simplified PPO-based scheduling system using pre-assigned machines from 
 ### Docker Setup
 - [ ] Create `Dockerfile`
 - [ ] Create `docker-compose.yml`
-- [ ] Create `requirements.txt`
+- [ ] Use uv with pyproject.toml (no requirements.txt)
 - [ ] Create `.env.example`
 
 ### Documentation
@@ -245,13 +245,13 @@ Build a simplified PPO-based scheduling system using pre-assigned machines from 
 - [ ] Create `docs/TRAINING.md` with training guide
 - [ ] Create `docs/EVALUATION.md` with metrics explanation
 
-## Success Criteria ✅
+## Success Criteria
 
 ### Performance Targets
 - [x] 95% constraint satisfaction rate (100% achieved)
-- [x] 85% on-time delivery rate (exceeded)
-- [x] <1 second inference for 100 jobs (achieved)
-- [ ] >60% machine utilization (pending evaluation)
+- [ ] 85% on-time delivery rate (current: ~29.05% with sb3_1million; needs improvement)
+- [ ] <1 second inference for 100 jobs (current: ~7.45s with sb3_1million)
+- [ ] >60% machine utilization (current: ~8.96%; target 60%+)
 - [ ] Better than FIFO baseline by 20% (pending comparison)
 
 ### Training Milestones
@@ -285,7 +285,7 @@ Build a simplified PPO-based scheduling system using pre-assigned machines from 
 - Day 4: Documentation
 - Day 5: Final testing
 
-## Stable Baselines3 Integration & 100x Improvement ✅ IN PROGRESS
+## Stable Baselines3 Integration & 100x Improvement - IN PROGRESS
 
 ### SB3 vs Custom PPO Comparison
 - [x] Demonstrated SB3 superiority with concrete evidence
@@ -304,9 +304,9 @@ Build a simplified PPO-based scheduling system using pre-assigned machines from 
 - [x] SB3 50k demo: 3.1% efficiency (baseline)
 - [x] SB3 100k: 3.1% efficiency (learning)
 - [x] SB3 25k optimized: 8.9% efficiency (1.2x improvement)
-- [ ] SB3 1M: Training in progress (expected 10-20x improvement)
+- [x] SB3 1M: Training complete (best_model.zip saved); completion 100%, on-time ~29.05%, utilization ~8.96%, inference ~7.45s
 
-## Phase 7: Web Visualization System ✅ COMPLETE
+## Phase 7: Web Visualization System - COMPLETE
 
 ### FastAPI Backend (app3/api/)
 - [x] Create main.py - FastAPI application with CORS
@@ -351,7 +351,7 @@ Build a simplified PPO-based scheduling system using pre-assigned machines from 
 - [x] Production-ready configuration
 - [x] Auto-detection eliminates manual configuration
 
-## Current Status: 📍 Phases 1-4 & 7 Complete
+## Current Status: Phases 1-4 & 7 Complete
 
 ### Phase 1 Completed (Environment):
 - ✅ Full environment implementation with all core components
@@ -391,7 +391,7 @@ Build a simplified PPO-based scheduling system using pre-assigned machines from 
 - **SB3 1M model**: Training complete, best_model.zip saved (168MB)
 - All sequence constraints properly enforced
 - Models respect pre-assigned machine constraints
-- Fast inference time (<1 second for 100 jobs)
+- Inference time ~7.45s for 327 tasks (100 jobs)
 
 ### Critical Fixes Applied:
 - Fixed sequence constraint violations (65 violations eliminated)

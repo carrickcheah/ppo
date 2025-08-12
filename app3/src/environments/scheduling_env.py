@@ -18,6 +18,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from data.snapshot_loader import SnapshotLoader
 from environments.constraint_validator import ConstraintValidator
 from environments.reward_calculator import RewardCalculator
+from utils.config import get_reward_config, get_environment_config
 
 logger = logging.getLogger(__name__)
 
@@ -47,13 +48,17 @@ class SchedulingEnv(gym.Env):
         self.loader = SnapshotLoader(snapshot_path)
         self.validator = ConstraintValidator(self.loader)
         
-        # Initialize reward calculator
-        reward_config = reward_config or {}
-        self.reward_calc = RewardCalculator(**reward_config)
+        # Initialize reward calculator from YAML if not provided
+        cfg_reward = get_reward_config()
+        if reward_config:
+            cfg_reward.update(reward_config)
+        self.reward_calc = RewardCalculator(**cfg_reward)
         
         # Environment parameters
-        self.max_steps = max_steps
-        self.planning_horizon = planning_horizon
+        env_cfg = get_environment_config()
+        # Respect explicit args if caller provided non-defaults
+        self.max_steps = max_steps if max_steps is not None else env_cfg.get("max_steps_per_episode", 10000)
+        self.planning_horizon = planning_horizon if planning_horizon is not None else float(env_cfg.get("planning_horizon", 720.0))
         
         # Define action and observation spaces
         self.n_tasks = len(self.loader.tasks)
